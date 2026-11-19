@@ -95,10 +95,8 @@ export async function exchangeCode(
           const data = await pfetch("https://github.com/login/oauth/access_token", null, {
             method: "POST",
             body: {
-              client_id: config.oauth.githubApp.slug
-                ? config.oauth.github.clientId || config.oauth.githubApp.appId
-                : config.oauth.github.clientId,
-              client_secret: config.oauth.github.clientSecret,
+          client_id: config.oauth.githubApp.clientId || config.oauth.github.clientId,
+          client_secret: config.oauth.githubApp.clientSecret || config.oauth.github.clientSecret,
               code: params.code,
             },
             headers: { Accept: "application/json" },
