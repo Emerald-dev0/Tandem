@@ -148,7 +148,7 @@ async function startConnect(ctx: Context, providerRaw: string) {
   buttons.push([Markup.button.callback("🚫 Cancel", "flow:cancel")]);
 
   const how =
-    buttons.length > 2
+    options.length > 0
       ? `Tap <b>Log in</b> and Tandem gets access the official way — nothing to copy.`
       : `${escapeHtml(def.tokenHelp)}\n\nThen <b>paste it here</b>.`;
 
@@ -341,10 +341,24 @@ export function createBot() {
       return startConnect(ctx, arg);
     }
 
+    const user = await userFromCtx(ctx);
+    if (!user) return ctx.reply("I couldn't identify your Telegram account.");
+
+    // Credentials get vaulted, so the key comes first.
+    if (!vaultReady()) {
+      return ctx.reply(
+        `🔐 <b>Encryption key required first</b>\n\n` +
+          `Before I store any provider credential, Tandem needs an <b>ENCRYPTION_KEY</b> ` +
+          `to lock it in the vault (AES-256-GCM).\n\n` +
+          `Tap below and I'll generate one — save it in Vercel (Settings → Environment Variables), ` +
+          `Redeploy, then send /connect again.`,
+        { parse_mode: "HTML", reply_markup: genKeyKeyboard().reply_markup }
+      );
+    }
+
+    const options = connectOptions();
     const buttons: any[] = [];
-    for (const opt of connectOptions()) {
-      const user = await userFromCtx(ctx);
-      if (!user) return;
+    for (const opt of options) {
       const nonce = randomHex(16);
       await saveOAuthState(nonce, user.telegramUserId, opt.provider);
       buttons.push([
@@ -355,13 +369,17 @@ export function createBot() {
       buttons.push([Markup.button.callback(`🔑 ${p.displayName} — paste a token`, `connect:${p.name}`)]);
     }
     buttons.push([Markup.button.callback("⬅️ Back", "welcome:back")]);
-    return ctx.reply(
-      `🔌 <b>Connect a service</b>\n\n` +
-        (buttons.length > 2
-          ? `Pick a provider. The <b>Log in</b> options are the easy way — Tandem gets installed on your account with proper permissions.`
-          : `Pick a provider and paste a token (OAuth apps can be added later for one-tap login).`),
-      { parse_mode: "HTML", reply_markup: Markup.inlineKeyboard(buttons).reply_markup }
-    );
+
+    const intro =
+      options.length > 0
+        ? `Pick a provider. The <b>Log in</b> buttons are the easy way — Tandem gets installed on your account with proper permissions.`
+        : `One-tap <b>Log in</b> buttons appear here once the OAuth apps are configured (SETUP.md step 7).\n\n` +
+          `For now, pick a provider below and <b>paste its token</b> — I'll verify it and store it encrypted.`;
+
+    return ctx.reply(`🔌 <b>Connect a service</b>\n\n${intro}`, {
+      parse_mode: "HTML",
+      reply_markup: Markup.inlineKeyboard(buttons).reply_markup,
+    });
   });
 
   bot.command("connections", async (ctx) => {
