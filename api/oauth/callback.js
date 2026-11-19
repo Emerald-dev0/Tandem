@@ -1,0 +1,112 @@
+/**
+ * OAuth callback — GET /api/oauth/callback?provider=...&state=...&code=...
+ * (GitHub App installs arrive as ?installation_id=...&setup_action=install&state=...)
+ *
+ * Exchange code → token, validate against the provider, encrypt into the
+ * vault, then deep-link the user back to the bot.
+ */
+
+import { exchangeCode, storageProvider } from "../_lib/oauth.js";
+import { consumeOAuthState, saveConnection, getBotUsername, listUserIds, logActivity } from "../_lib/store.js";
+import { validateToken } from "../_lib/providers/index.js";
+
+const VALID = new Set(["github", "github_app", "vercel", "cloudflare"]);
+
+export default async function handler(req, res) {
+  if (req.method !== "GET") return res.status(405).json({ ok: false, error: "GET only" });
+
+  const q = req.query ?? {};
+  const providerRaw = String(q.provider ?? (q.installation_id ? "github_app" : ""));
+  const state = String(q.state ?? "");
+  const code = q.code ? String(q.code) : undefined;
+  const installationId = q.installation_id ? String(q.installation_id) : undefined;
+
+  try {
+    if (!VALID.has(providerRaw)) {
+      return fail(res, providerRaw || "unknown", "unknown provider");
+    }
+    if (q.error) {
+      return fail(res, providerRaw, String(q.error_description || q.error));
+    }
+
+    // Bind to the Telegram user via the single-use state nonce.
+    let session = state ? await consumeOAuthState(state) : null;
+    if (!session && providerRaw === "github_app") {
+      // GitHub App installs occasionally drop `state` — fall back to the most
+      // recent pending github_app connect (personal-scale bot, single operator).
+      session = await latestPending("github_app");
+    }
+    if (!session) {
+      return fail(res, providerRaw, "connect link expired or already used — send /connect again");
+    }
+
+    const exchanged = await exchangeCode(providerRaw, { code, installationId });
+    const check = await validateToken(storageProvider(providerRaw), exchanged.token);
+    if (!check.ok) {
+      return fail(res, providerRaw, check.error || "the provider rejected the token");
+    }
+
+    await saveConnection(
+      session.userId,
+      storageProvider(providerRaw),
+      exchanged.token,
+      check.identity,
+      exchanged.authType
+    );
+    await logActivity(session.userId, storageProvider(providerRaw), "connected", check.identity ?? undefined);
+
+    const botUser = await getBotUsername();
+    const label = providerRaw === "github_app" ? "github" : providerRaw;
+    if (botUser) {
+      res.writeHead(302, {
+        Location: `https://t.me/${botUser}?start=connected_${label}`,
+      });
+      return res.end();
+    }
+    return res.status(200).send(successHtml(label, check.identity));
+  } catch (err) {
+    console.error("oauth callback error:", err);
+    return fail(res, providerRaw || "unknown", err.message ?? String(err));
+  }
+}
+
+async function latestPending(provider) {
+  const { getStorage } = await import("../_lib/storage.js");
+  const kv = getStorage();
+  const keys = await kv.list("tandem:oauth:state:");
+  for (const key of keys.reverse()) {
+    const raw = await kv.get(key);
+    if (!raw) continue;
+    const parsed = JSON.parse(raw);
+    if (parsed.provider === provider) return { userId: parsed.userId, provider: parsed.provider };
+  }
+  return null;
+}
+
+function fail(res, provider, reason) {
+  const botUser = null; // best effort; the HTML page below always works
+  void botUser;
+  return res.status(200).send(failHtml(provider, reason));
+}
+
+function esc(s) {
+  return String(s).replace(/[<>&]/g, (c) => ({ "<": "&lt;", ">": "&gt;", "&": "&amp;" }[c]));
+}
+
+function successHtml(provider, identity) {
+  return `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Tandem — connected</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>body{font-family:system-ui;max-width:520px;margin:80px auto;padding:0 24px;text-align:center;color:#1a1a2e}</style>
+</head><body><h1>✅ Connected!</h1>
+<p><b>${esc(provider)}</b> is now linked${identity ? ` as <b>${esc(identity)}</b>` : ""}.</p>
+<p>You can close this page — head back to Telegram and send /connections.</p></body></html>`;
+}
+
+function failHtml(provider, reason) {
+  return `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Tandem — failed</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>body{font-family:system-ui;max-width:520px;margin:80px auto;padding:0 24px;text-align:center;color:#1a1a2e}</style>
+</head><body><h1>😕 Connection failed</h1>
+<p><b>${esc(provider)}</b>: ${esc(reason)}</p>
+<p>Back in Telegram, send /connect to try again.</p></body></html>`;
+}

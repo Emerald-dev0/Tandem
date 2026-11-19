@@ -1,6 +1,6 @@
 {
   "name": "tandem",
-  "version": "0.1.0",
+  "version": "0.3.0",
   "description": "Tandem — Your entire stack. One conversation. Conversational DevOps via Telegram.",
   "type": "module",
   "main": "dist/index.js",
@@ -11,6 +11,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@neondatabase/serverless": "^1.2.1",
     "dotenv": "^16.4.5",
     "telegraf": "^4.16.3"
   },
