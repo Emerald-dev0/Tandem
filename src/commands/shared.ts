@@ -65,9 +65,13 @@ export async function withProvider(
   const conn = await getConnection(user.telegramUserId, provider);
   if (!conn) {
     const def = providerDef(provider);
+    const { connectOptions, storageProvider } = await import("../oauth.js");
+    const canLogin = connectOptions().some((o) => storageProvider(o.provider) === provider);
     return void (await ctx.reply(
-      `${def?.icon ?? "🔌"} <b>${def?.displayName ?? provider} isn't connected yet.</b>\n\nUse /connect ${provider} — ` +
-        `you can log in${provider === "render" ? " with an API key" : " in one tap"}, no token pasting needed${provider === "render" ? "" : " (or paste a token if you prefer)"}.`,
+      `${def?.icon ?? "🔌"} <b>${def?.displayName ?? provider} isn't connected yet.</b>\n\n` +
+        (canLogin
+          ? `Use /connect ${provider} — log in in one tap, nothing to copy (or paste a token if you prefer).`
+          : `Use /connect ${provider} and paste a token — one-tap Log in buttons appear there once the OAuth apps are configured.`),
       { parse_mode: "HTML" }
     ));
   }
