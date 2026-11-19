@@ -75,10 +75,10 @@ export async function exchangeCode(
     case "github": {
       const data = await pfetch("https://github.com/login/oauth/access_token", null, {
         method: "POST",
-        body: {
+        form: {
           client_id: config.oauth.github.clientId,
           client_secret: config.oauth.github.clientSecret,
-          code: params.code,
+          code: params.code ?? "",
         },
         headers: { Accept: "application/json" },
       });
@@ -94,10 +94,10 @@ export async function exchangeCode(
         try {
           const data = await pfetch("https://github.com/login/oauth/access_token", null, {
             method: "POST",
-            body: {
-          client_id: config.oauth.githubApp.clientId || config.oauth.github.clientId,
-          client_secret: config.oauth.githubApp.clientSecret || config.oauth.github.clientSecret,
-              code: params.code,
+            form: {
+              client_id: config.oauth.githubApp.clientId || config.oauth.github.clientId,
+              client_secret: config.oauth.githubApp.clientSecret || config.oauth.github.clientSecret,
+              code: params.code ?? "",
             },
             headers: { Accept: "application/json" },
           });
@@ -114,10 +114,10 @@ export async function exchangeCode(
     case "vercel": {
       const data = await pfetch("https://api.vercel.com/v2/oauth/access_token", null, {
         method: "POST",
-        body: {
+        form: {
           client_id: config.oauth.vercel.clientId,
           client_secret: config.oauth.vercel.clientSecret,
-          code: params.code,
+          code: params.code ?? "",
           redirect_uri: callbackUrl(),
         },
       });
@@ -127,10 +127,10 @@ export async function exchangeCode(
     case "cloudflare": {
       const data = await pfetch("https://dash.cloudflare.com/oauth2/token", null, {
         method: "POST",
-        body: {
+        form: {
           client_id: config.oauth.cloudflare.clientId,
           client_secret: config.oauth.cloudflare.clientSecret,
-          code: params.code,
+          code: params.code ?? "",
           redirect_uri: callbackUrl(),
           grant_type: "authorization_code",
         },
