@@ -44,3 +44,31 @@ export const settingsKeyboard = Markup.inlineKeyboard([
   [Markup.button.callback("📊 Status", "settings:status")],
   [Markup.button.callback("⬅️ Back", "welcome:back")],
 ]);
+
+export function cancelFlowKeyboard() {
+  return Markup.inlineKeyboard([
+    [Markup.button.callback("🚫 Cancel", "flow:cancel")],
+  ]);
+}
+
+export function disconnectKeyboard(provider: string) {
+  return Markup.inlineKeyboard([
+    [Markup.button.callback(`🗑 Yes, disconnect ${provider}`, `disconnect:${provider}:yes`)],
+    [Markup.button.callback("⬅️ Keep it", "settings:connections")],
+  ]);
+}
+
+export function connectDoneKeyboard(provider: string) {
+  return Markup.inlineKeyboard([
+    [Markup.button.callback("🔌 Connect another", "welcome:connect")],
+    [Markup.button.callback("🔌 View connections", "settings:connections")],
+    [Markup.button.callback("⬅️ Main menu", "welcome:back")],
+  ]);
+}
+
+export function genKeyKeyboard() {
+  return Markup.inlineKeyboard([
+    [Markup.button.callback("🔐 Generate encryption key", "flow:genkey")],
+    [Markup.button.callback("🚫 Cancel", "flow:cancel")],
+  ]);
+}

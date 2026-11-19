@@ -1,6 +1,16 @@
 import { Telegraf, Context } from "telegraf";
 import { config } from "./config.js";
-import { getOrCreateUser, userCount } from "./store.js";
+import {
+  getOrCreateUser,
+  userCount,
+  saveConnection,
+  listConnections,
+  removeConnection,
+  getConnection,
+  getPending,
+  setPending,
+  clearPending,
+} from "./store.js";
 import {
   mainMenuKeyboard,
   welcomeKeyboard,
@@ -9,34 +19,14 @@ import {
   deploymentsKeyboard,
   infraKeyboard,
   settingsKeyboard,
+  cancelFlowKeyboard,
+  disconnectKeyboard,
+  connectDoneKeyboard,
+  genKeyKeyboard,
 } from "./keyboards.js";
-
-const PROVIDERS = ["github", "vercel", "cloudflare", "render"] as const;
-
-function userFromCtx(ctx: Context) {
-  const from = ctx.from;
-  if (!from) return null;
-  return getOrCreateUser({
-    telegramUserId: from.id,
-    telegramUsername: from.username,
-    firstName: from.first_name,
-    languageCode: from.language_code,
-  });
-}
-
-function escapeHtml(s: string): string {
-  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-}
-
-function comingSoon(ctx: Context, feature: string, phase: string) {
-  return ctx.reply(
-    `⏳ <b>${feature}</b> is coming in ${phase}.\n\n` +
-      `Right now Tandem is in Phase 1 — the Telegram foundation. ` +
-      `Once the bot is live and tested, we'll build integrations one at a time:\n\n` +
-      `🐙 Phase 3 — GitHub\n▲ Phase 4 — Vercel\n☁️ Phase 5 — Cloudflare\n🟣 Phase 6 — Render`,
-    { parse_mode: "HTML" }
-  );
-}
+import { PROVIDER_LIST, providerDef, validateToken } from "./integrations.js";
+import { vaultReady, generateKey } from "./vault.js";
+import { storageMode } from "./storage.js";
 
 export const BOT_COMMANDS = [
   { command: "start", description: "Start Tandem and initialize account" },
@@ -71,12 +61,83 @@ export async function registerCommands(bot: Telegraf) {
   await bot.telegram.setMyCommands(sanitized);
 }
 
+function escapeHtml(s: string): string {
+  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+
+/** Anything that looks like a provider/bot token must never be echoed. */
+function looksSecret(text: string): boolean {
+  return /(ghp_|gho_|ghu_|ghs_|github_pat_|sk-[A-Za-z0-9]|glpat-|xox[baprs]-|AKIA[0-9A-Z]{16}|Bearer\s+[A-Za-z0-9]|^\s*\d+:[A-Za-z0-9_-]{30,})/.test(
+    text
+  );
+}
+
+function userFromCtx(ctx: Context) {
+  const from = ctx.from;
+  if (!from) return Promise.resolve(null);
+  return getOrCreateUser({
+    telegramUserId: from.id,
+    telegramUsername: from.username,
+    firstName: from.first_name,
+    languageCode: from.language_code,
+  });
+}
+
+function comingSoon(ctx: Context, feature: string, phase: string) {
+  return ctx.reply(
+    `⏳ <b>${feature}</b> is coming in ${phase}.\n\n` +
+      `Right now Tandem is in Phase 2 — the integration framework. ` +
+      `Connections are being wired up provider by provider:\n\n` +
+      `🐙 Phase 3 — GitHub\n▲ Phase 4 — Vercel\n☁️ Phase 5 — Cloudflare\n🟣 Phase 6 — Render`,
+    { parse_mode: "HTML" }
+  );
+}
+
+/** Begin the connect flow for one provider: explain + wait for a token. */
+async function startConnect(ctx: Context, provider: string) {
+  const def = providerDef(provider);
+  if (!def) return ctx.reply(`Unknown provider "${provider}".`);
+  const user = await userFromCtx(ctx);
+  if (!user) return ctx.reply("I couldn't identify your Telegram account.");
+
+  const existing = await getConnection(user.telegramUserId, provider);
+  if (existing) {
+    return ctx.reply(
+      `${def.icon} <b>${def.displayName}</b> is already connected${existing.identity ? ` as ${escapeHtml(existing.identity)}` : ""}.\n\n` +
+        `Use /disconnect ${provider} first if you want to replace the token.`,
+      { parse_mode: "HTML" }
+    );
+  }
+
+  if (!vaultReady()) {
+    return ctx.reply(
+      `🔐 <b>Encryption key required first</b>\n\n` +
+        `Before I store any provider token, Tandem needs an <b>ENCRYPTION_KEY</b> ` +
+        `to lock it in the vault (AES-256-GCM).\n\n` +
+        `Tap the button below and I'll generate one for you, then save it in ` +
+        `Vercel → Settings → Environment Variables.`,
+      { parse_mode: "HTML", reply_markup: genKeyKeyboard().reply_markup }
+    );
+  }
+
+  await setPending(user.telegramUserId, { kind: `token:${provider}`, startedAt: new Date().toISOString() });
+  return ctx.reply(
+    `${def.icon} <b>Connect ${def.displayName}</b>\n\n` +
+      `${escapeHtml(def.tokenHelp)}\n\n` +
+      `Then <b>paste the token here</b>.\n\n` +
+      `🔒 I'll encrypt it immediately and try to delete your message. ` +
+      `I'll never show it back to you.\n\n` +
+      `Send /cancel to abort.`,
+    { parse_mode: "HTML", reply_markup: cancelFlowKeyboard().reply_markup }
+  );
+}
+
 export function createBot() {
   const bot = new Telegraf(config.botToken);
 
   // ── /start ────────────────────────────────────────────────────────
   bot.start(async (ctx) => {
-    const user = userFromCtx(ctx);
+    const user = await userFromCtx(ctx);
     const name = escapeHtml(user?.firstName ?? "there");
     const isNew = user && user.createdAt.getTime() > Date.now() - 5000;
 
@@ -139,8 +200,8 @@ export function createBot() {
   bot.command("commands", (ctx) => ctx.reply(helpText, { parse_mode: "HTML" }));
 
   // ── Account commands ──────────────────────────────────────────────
-  bot.command("profile", (ctx) => {
-    const user = userFromCtx(ctx);
+  bot.command("profile", async (ctx) => {
+    const user = await userFromCtx(ctx);
     if (!user) return ctx.reply("I couldn't identify your Telegram account.");
     return ctx.reply(
       `<b>👤 Your Tandem profile</b>\n\n` +
@@ -154,14 +215,17 @@ export function createBot() {
     );
   });
 
-  bot.command("status", (ctx) => {
-    const user = userFromCtx(ctx);
-    const lines = PROVIDERS.map((p) => {
-      const connected = user?.connectedProviders.includes(p);
-      return `${connected ? "🟢" : "⚪"} ${p[0].toUpperCase() + p.slice(1)} — ${connected ? "connected" : "not connected"}`;
+  bot.command("status", async (ctx) => {
+    const user = await userFromCtx(ctx);
+    const lines = PROVIDER_LIST.map((p) => {
+      const connected = user?.connectedProviders.includes(p.name);
+      return `${connected ? "🟢" : "⚪"} ${p.displayName} — ${connected ? "connected" : "not connected"}`;
     });
+    const storage = storageMode() === "redis" ? "🟢 persistent (Redis)" : "🟡 in-memory (add Upstash in Vercel → Storage)";
+    const vault = vaultReady() ? "🟢 ready" : "🟡 no ENCRYPTION_KEY yet";
     return ctx.reply(
-      `<b>📊 Tandem status</b>\n\nBot: 🟢 online\nUsers: ${userCount()}\n\n${lines.join("\n")}`,
+      `<b>📊 Tandem status</b>\n\n` +
+        `Bot: 🟢 online\nUsers: ${await userCount()}\nStorage: ${storage}\nVault: ${vault}\n\n${lines.join("\n")}`,
       { parse_mode: "HTML" }
     );
   });
@@ -185,8 +249,8 @@ export function createBot() {
     ctx.reply("⚙️ <b>Settings</b>", { parse_mode: "HTML", reply_markup: settingsKeyboard.reply_markup })
   );
 
-  bot.command("workspace", (ctx) => {
-    const user = userFromCtx(ctx);
+  bot.command("workspace", async (ctx) => {
+    const user = await userFromCtx(ctx);
     return ctx.reply(
       `🏠 <b>Workspace</b>\n\nYou're in <code>${user?.workspaceId ?? "—"}</code>.\n\n` +
         "Tandem is built workspace-first, so team workspaces can be added later " +
@@ -195,15 +259,20 @@ export function createBot() {
     );
   });
 
-  bot.command("cancel", (ctx) =>
-    ctx.reply("No active operation to cancel right now. ✅")
-  );
+  bot.command("cancel", async (ctx) => {
+    const user = await userFromCtx(ctx);
+    const pending = user ? await getPending(user.telegramUserId) : undefined;
+    if (user) await clearPending(user.telegramUserId);
+    return ctx.reply(
+      pending ? "✅ Cancelled. Nothing is pending now." : "No active operation to cancel right now. ✅"
+    );
+  });
 
-  // ── Integration commands ──────────────────────────────────────────
-  bot.command("connect", (ctx) => {
+  // ── Integration commands (Phase 2) ────────────────────────────────
+  bot.command("connect", async (ctx) => {
     const arg = ctx.message && "text" in ctx.message ? ctx.message.text.split(/\s+/)[1]?.toLowerCase() : undefined;
-    if (arg && (PROVIDERS as readonly string[]).includes(arg)) {
-      return comingSoon(ctx, `Connecting ${arg}`, "Phase 2");
+    if (arg && providerDef(arg)) {
+      return startConnect(ctx, arg);
     }
     return ctx.reply("🔌 <b>Connect a service</b>\n\nPick one:", {
       parse_mode: "HTML",
@@ -211,20 +280,46 @@ export function createBot() {
     });
   });
 
-  bot.command("connections", (ctx) => {
-    const user = userFromCtx(ctx);
-    const list = user?.connectedProviders ?? [];
-    return ctx.reply(
-      list.length
-        ? `🔌 Connected: ${list.join(", ")}`
-        : "🔌 No services connected yet.\n\nUse /connect to add GitHub, Vercel, Cloudflare or Render.",
-      { parse_mode: "HTML" }
-    );
+  bot.command("connections", async (ctx) => {
+    const user = await userFromCtx(ctx);
+    if (!user) return ctx.reply("I couldn't identify your Telegram account.");
+    const list = await listConnections(user.telegramUserId);
+    if (!list.length) {
+      return ctx.reply(
+        "🔌 No services connected yet.\n\nUse /connect to add GitHub, Vercel, Cloudflare or Render."
+      );
+    }
+    const lines = list.map((c) => {
+      const def = providerDef(c.provider);
+      return `${def?.icon ?? "🔌"} <b>${def?.displayName ?? c.provider}</b> — ${escapeHtml(c.identity ?? "connected")} (since ${new Date(c.connectedAt).toLocaleDateString()})`;
+    });
+    return ctx.reply(`🔌 <b>Connected services</b>\n\n${lines.join("\n")}`, {
+      parse_mode: "HTML",
+      reply_markup: settingsKeyboard.reply_markup,
+    });
   });
 
-  bot.command("disconnect", (ctx) =>
-    comingSoon(ctx, "Disconnecting a provider", "Phase 2")
-  );
+  bot.command("disconnect", async (ctx) => {
+    const user = await userFromCtx(ctx);
+    if (!user) return ctx.reply("I couldn't identify your Telegram account.");
+    const arg = ctx.message && "text" in ctx.message ? ctx.message.text.split(/\s+/)[1]?.toLowerCase() : undefined;
+    const list = await listConnections(user.telegramUserId);
+
+    if (arg && providerDef(arg)) {
+      if (!list.some((c) => c.provider === arg)) {
+        return ctx.reply(`${providerDef(arg)?.icon ?? ""} ${arg} is not connected.`);
+      }
+      return ctx.reply(`Really disconnect <b>${escapeHtml(arg)}</b>?`, {
+        parse_mode: "HTML",
+        reply_markup: disconnectKeyboard(arg).reply_markup,
+      });
+    }
+
+    if (!list.length) return ctx.reply("🔌 Nothing is connected — nothing to disconnect.");
+    return ctx.reply("Which service should I disconnect?", {
+      reply_markup: disconnectKeyboard(list[0].provider).reply_markup,
+    });
+  });
 
   // ── Provider command stubs (real logic lands in Phases 3–6) ───────
   const stub = (label: string, phase: string) => (ctx: Context) =>
@@ -252,22 +347,24 @@ export function createBot() {
   bot.command("projects", stub("Listing Vercel projects", "Phase 4 — Vercel"));
   bot.command("create-project", stub("Creating a Vercel project", "Phase 4 — Vercel"));
   bot.command("project", stub("Inspecting a Vercel project", "Phase 4 — Vercel"));
-  bot.command("deploy", stub("Deploying", "Phase 4 — Vercel / Phase 6 — Render"));
+  bot.command("deploy", stub("Triggering a deployment", "Phase 4 — Vercel"));
   bot.command("redeploy", stub("Redeploying", "Phase 4 — Vercel"));
   bot.command("deployments", stub("Listing deployments", "Phase 4 — Vercel"));
-  bot.command("deployment", stub("Inspecting a deployment", "Phase 4 — Vercel"));
-  bot.command("env", stub("Environment variables", "Phase 4 — Vercel / Phase 6 — Render"));
-  bot.command("domains", stub("Project domains", "Phase 4 — Vercel"));
-  bot.command("logs", stub("Logs", "Phase 4 — Vercel / Phase 6 — Render"));
+  bot.command("deployment", stub("Deployment details", "Phase 4 — Vercel"));
+  bot.command("env", stub("Environment variables", "Phase 4 — Vercel"));
+  bot.command("domains", stub("Domains", "Phase 4 — Vercel"));
+  bot.command("logs", stub("Logs", "Phase 4 — Vercel"));
 
   bot.command("zones", stub("Listing Cloudflare zones", "Phase 5 — Cloudflare"));
+  bot.command("zone", stub("Zone details", "Phase 5 — Cloudflare"));
   bot.command("dns", stub("DNS records", "Phase 5 — Cloudflare"));
   bot.command("dns-add", stub("Adding a DNS record", "Phase 5 — Cloudflare"));
   bot.command("dns-update", stub("Updating a DNS record", "Phase 5 — Cloudflare"));
   bot.command("dns-delete", stub("Deleting a DNS record", "Phase 5 — Cloudflare"));
-  bot.command("dns-check", stub("DNS check", "Phase 5 — Cloudflare"));
-  bot.command("dns-import", stub("DNS import", "Phase 5 — Cloudflare"));
+  bot.command("dns-check", stub("Checking DNS", "Phase 5 — Cloudflare"));
+  bot.command("dns-import", stub("Importing DNS", "Phase 5 — Cloudflare"));
   bot.command("zone-settings", stub("Zone settings", "Phase 5 — Cloudflare"));
+  bot.command("purge", stub("Cache purge", "Phase 5 — Cloudflare"));
 
   bot.command("services", stub("Listing Render services", "Phase 6 — Render"));
   bot.command("service", stub("Inspecting a Render service", "Phase 6 — Render"));
@@ -277,11 +374,11 @@ export function createBot() {
 
   bot.command("activity", stub("Activity feed", "Phase 9 — Monitoring"));
   bot.command("alerts", stub("Alerts", "Phase 9 — Monitoring"));
-  bot.command("digest", stub("Activity digest", "Phase 9 — Monitoring"));
-  bot.command("history", stub("Operation history", "Phase 8 — Orchestration"));
-  bot.command("tasks", stub("Workflows", "Phase 8 — Orchestration"));
-  bot.command("watch", stub("Monitoring setup", "Phase 9 — Monitoring"));
-  bot.command("unwatch", stub("Stopping monitoring", "Phase 9 — Monitoring"));
+  bot.command("digest", stub("Digests", "Phase 9 — Monitoring"));
+  bot.command("history", stub("History", "Phase 9 — Monitoring"));
+  bot.command("tasks", stub("Background tasks", "Phase 9 — Monitoring"));
+  bot.command("watch", stub("Watches", "Phase 9 — Monitoring"));
+  bot.command("unwatch", stub("Removing watches", "Phase 9 — Monitoring"));
   bot.command("notifications", stub("Notification settings", "Phase 9 — Monitoring"));
   bot.command("permissions", stub("Permissions", "Phase 2 — Framework"));
   bot.command("integration", stub("Integration details", "Phase 2 — Framework"));
@@ -310,9 +407,41 @@ export function createBot() {
     ctx.reply("🏠 <b>Main menu</b>", { parse_mode: "HTML", reply_markup: welcomeKeyboard.reply_markup })
   );
 
-  bot.action(/^connect:(.+)$/, (ctx) => {
+  bot.action("flow:cancel", async (ctx) => {
+    const user = await userFromCtx(ctx);
+    if (user) await clearPending(user.telegramUserId);
+    return ctx.reply("✅ Cancelled.");
+  });
+
+  bot.action("flow:genkey", async (ctx) => {
+    if (vaultReady()) {
+      return ctx.reply("🔐 ENCRYPTION_KEY is already configured. Send your token with /connect.");
+    }
+    const key = generateKey();
+    return ctx.reply(
+      `🔐 <b>Your new encryption key</b>\n\n<code>${key}</code>\n\n` +
+        `Now:\n` +
+        `1. Copy it\n` +
+        `2. Vercel → your project → Settings → Environment Variables\n` +
+        `3. Add <code>ENCRYPTION_KEY</code> with this value\n` +
+        `4. Redeploy, then run /connect again\n\n` +
+        `⚠️ <b>Delete this message</b> after saving — anyone with this key can unlock your stored tokens.`,
+      { parse_mode: "HTML" }
+    );
+  });
+
+  bot.action(/^connect:([a-z]+)$/, async (ctx) => {
     const provider = (ctx.match?.[1] ?? "").toLowerCase();
-    return comingSoon(ctx, `Connecting ${provider}`, "Phase 2");
+    return startConnect(ctx, provider);
+  });
+
+  bot.action(/^disconnect:([a-z]+):yes$/, async (ctx) => {
+    const provider = (ctx.match?.[1] ?? "").toLowerCase();
+    const user = await userFromCtx(ctx);
+    if (!user) return ctx.reply("I couldn't identify your Telegram account.");
+    await removeConnection(user.telegramUserId, provider);
+    await clearPending(user.telegramUserId);
+    return ctx.reply(`🗑 ${providerDef(provider)?.displayName ?? provider} disconnected. Use /connect anytime to reconnect.`);
   });
 
   bot.action("github:repos", (ctx) => comingSoon(ctx, "Listing repositories", "Phase 3 — GitHub"));
@@ -321,25 +450,29 @@ export function createBot() {
   bot.action("deploy:render", (ctx) => comingSoon(ctx, "Render services", "Phase 6 — Render"));
   bot.action("infra:cloudflare", (ctx) => comingSoon(ctx, "Cloudflare zones", "Phase 5 — Cloudflare"));
 
-  bot.action("settings:profile", (ctx) => {
-    const user = userFromCtx(ctx);
+  bot.action("settings:profile", async (ctx) => {
+    const user = await userFromCtx(ctx);
     return ctx.reply(
-      `👤 <b>Profile</b>\n\nName: ${user?.firstName ?? "—"}\nTelegram: @${user?.telegramUsername ?? "—"}\nWorkspace: <code>${user?.workspaceId ?? "—"}</code>`,
+      `👤 <b>Profile</b>\n\nName: ${escapeHtml(user?.firstName ?? "—")}\nTelegram: @${escapeHtml(user?.telegramUsername ?? "—")}\nWorkspace: <code>${user?.workspaceId ?? "—"}</code>`,
       { parse_mode: "HTML" }
     );
   });
 
-  bot.action("settings:connections", (ctx) => {
-    const user = userFromCtx(ctx);
-    const list = user?.connectedProviders ?? [];
-    return ctx.reply(list.length ? `🔌 Connected: ${list.join(", ")}` : "🔌 Nothing connected yet. Use /connect to add a service.");
+  bot.action("settings:connections", async (ctx) => {
+    const user = await userFromCtx(ctx);
+    const list = user ? await listConnections(user.telegramUserId) : [];
+    return ctx.reply(
+      list.length
+        ? `🔌 Connected: ${list.map((c) => c.provider).join(", ")}\n\nUse /connections for details or /disconnect to remove one.`
+        : "🔌 Nothing connected yet. Use /connect to add a service."
+    );
   });
 
-  bot.action("settings:status", (ctx) => {
-    const user = userFromCtx(ctx);
-    const lines = PROVIDERS.map((p) => {
-      const connected = user?.connectedProviders.includes(p);
-      return `${connected ? "🟢" : "⚪"} ${p} — ${connected ? "connected" : "not connected"}`;
+  bot.action("settings:status", async (ctx) => {
+    const user = await userFromCtx(ctx);
+    const lines = PROVIDER_LIST.map((p) => {
+      const connected = user?.connectedProviders.includes(p.name);
+      return `${connected ? "🟢" : "⚪"} ${p.displayName} — ${connected ? "connected" : "not connected"}`;
     });
     return ctx.reply(`<b>📊 Status</b>\n\nBot: 🟢 online\n\n${lines.join("\n")}`, { parse_mode: "HTML" });
   });
@@ -365,13 +498,67 @@ export function createBot() {
     ctx.reply("⚙️ <b>Settings</b>", { parse_mode: "HTML", reply_markup: settingsKeyboard.reply_markup })
   );
 
-  // ── Natural language (Phase 7 will make this smart) ──────────────
-  bot.on("text", (ctx) => {
+  // ── Text: token intake (Phase 2) + natural language ───────────────
+  bot.on("text", async (ctx) => {
     const text = ctx.message.text;
     if (text.startsWith("/")) return; // commands handled above
-    userFromCtx(ctx);
+    const user = await userFromCtx(ctx);
+    if (!user) return;
+
+    // Token intake: a pending connect flow is waiting for this message.
+    const pending = await getPending(user.telegramUserId);
+    if (pending?.kind?.startsWith("token:")) {
+      const provider = pending.kind.slice("token:".length);
+      const def = providerDef(provider);
+      const token = text.trim();
+
+      // Never leave a token sitting in the chat if we can remove it.
+      try {
+        await ctx.deleteMessage();
+      } catch {
+        /* bots can't always delete — the reminder below covers it */
+      }
+
+      const result = await validateToken(provider, token);
+      if (!result.ok) {
+        const tries = (pending.tries ?? 0) + 1;
+        if (tries >= 3) {
+          await clearPending(user.telegramUserId);
+          return ctx.reply(
+            `❌ ${escapeHtml(result.error ?? "That didn't work.")}\n\nLet's start over — run /connect ${provider} when ready.\n\n⚠️ If you posted a token in this chat, delete that message now.`
+          );
+        }
+        await setPending(user.telegramUserId, { ...pending, tries });
+        return ctx.reply(
+          `❌ ${escapeHtml(result.error ?? "That didn't work.")}\n\nSend another token, or /cancel.\n\n⚠️ If you posted a token in this chat, delete that message now.`,
+          { reply_markup: cancelFlowKeyboard().reply_markup }
+        );
+      }
+
+      await saveConnection(user.telegramUserId, provider, token, result.identity);
+      await clearPending(user.telegramUserId);
+      return ctx.reply(
+        `${def?.icon ?? "🔌"} <b>${def?.displayName ?? provider} connected!</b>\n\n` +
+          `Account: ${escapeHtml(result.identity ?? "verified")}\n` +
+          `Your token is encrypted (AES-256-GCM) in the vault.\n\n` +
+          `⚠️ If your token message is still visible, long-press it → Delete.\n\n` +
+          `What next?`,
+        { parse_mode: "HTML", reply_markup: connectDoneKeyboard(provider).reply_markup }
+      );
+    }
+
+    // Safety net: never process or echo something that looks like a secret.
+    if (looksSecret(text)) {
+      return ctx.reply(
+        "🔐 That looks like a secret! Please <b>don't</b> paste tokens as plain messages.\n\n" +
+          "Use /connect and I'll store it encrypted — and delete that message right now.",
+        { parse_mode: "HTML" }
+      );
+    }
+
+    // Natural language (Phase 7 will make this smart) — escaped, truncated, no secrets.
     return ctx.reply(
-      `💬 I heard: "<i>${text}</i>"\n\n` +
+      `💬 I heard: "<i>${escapeHtml(text.slice(0, 80))}</i>"\n\n` +
         `Natural-language understanding arrives in <b>Phase 7</b>. ` +
         `For now, try a slash command like /help, /connect or /status — ` +
         `or tap the menu below 👇`,
@@ -384,7 +571,7 @@ export function createBot() {
     console.error("Bot error:", err);
     const detail = String((err as Error)?.message ?? err).slice(0, 200);
     ctx
-      ?.reply(`⚠️ Something went wrong on my side: ${detail}\n\nPlease try again in a moment.`)
+      ?.reply(`⚠️ Something went wrong on my side: ${escapeHtml(detail)}\n\nPlease try again in a moment.`)
       .catch(() => {});
   });
 
