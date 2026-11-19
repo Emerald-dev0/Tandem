@@ -201,7 +201,7 @@ const helpText = `
 export function createBot() {
   const bot = new Telegraf(config.botToken);
 
-  // Phase 10: owner guard + rate limit for every update.
+  // Phase 10: access control + rate limit for every update.
   bot.use(async (ctx, next) => {
     if (config.ownerUsername) {
       const uname = (ctx.from?.username ?? "").toLowerCase();
@@ -209,6 +209,13 @@ export function createBot() {
         return ctx.reply("🔒 This Tandem instance is private. Ask the owner for access.");
       }
       if (!uname) return ctx.reply("🔒 This Tandem instance needs a Telegram username to identify you.");
+    } else if (config.allowedUserIds.length > 0) {
+      // Beta mode: only listed users, everyone else gets a friendly note.
+      if (!ctx.from || !config.allowedUserIds.includes(ctx.from.id)) {
+        return ctx.reply(
+          "👋 Tandem is in private beta right now — ask the owner to add your Telegram ID to the allowlist."
+        );
+      }
     }
     if (ctx.from) {
       const limit = checkLimit(ctx.from.id, "messages", LIMITS.messages);
