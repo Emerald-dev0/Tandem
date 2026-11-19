@@ -56,7 +56,7 @@ export default async function handler(req, res) {
         (t) => new Date(t.updatedAt).getTime() >= since
       );
 
-      const lines: string[] = [
+      const lines = [
         `☀️ <b>Tandem daily digest</b>`,
         ``,
         `Activity (24h): ${activity.length}`,

@@ -112,6 +112,10 @@ const cases = [
   ["secret pasted unprompted", txt(11, { id: 16, is_bot: false, first_name: "Eve" }, "here is ghp_secrettoken123456 oops")],
   ["/disconnect github (confirm)", cmd(12, alice, "/disconnect github")],
   ["/connect github again (already connected)", cmd(13, alice, "/connect github")],
+
+  // ── Phase 7 NL dispatch ──
+  ["NL: list my repos → cmdRepos", txt(17, { id: 17, is_bot: false, first_name: "Nia", username: "nia" }, "list my repos")],
+  ["NL: what's the status → status", txt(18, { id: 18, is_bot: false, first_name: "Kojo", username: "kojo" }, "what's the status")],
 ];
 
 let failures = 0;
@@ -135,6 +139,8 @@ function assert(label, cond) {
 assert("good token stored (reply names the identity)", allText.includes("octo-test"));
 assert("no token echoed back to chat", !allText.includes("ghp_goodtoken") && !allText.includes("ghp_badtoken"));
 assert("secret warning fired for unprompted paste", allText.includes("looks like a secret"));
+assert("NL 'list my repos' dispatched to repos command", allText.includes("isn't connected yet") || allText.includes("Your repositories"));
+assert("NL 'what's the status' answered with status", allText.includes("Tandem status"));
 
 // ═══════════════════════════════════════════════════════════════════
 // PHASE 2–10 MODULE CHECKS — store, vault, oauth-state, nlp, ratelimit,

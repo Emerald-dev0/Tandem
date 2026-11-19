@@ -274,7 +274,7 @@ export function createBot() {
     );
   });
 
-  bot.command("status", async (ctx) => {
+  const sendStatus = async (ctx: Context) => {
     const user = await userFromCtx(ctx);
     const lines = PROVIDER_LIST.map((p) => {
       const connected = user?.connectedProviders.includes(p.name);
@@ -293,7 +293,8 @@ export function createBot() {
         `/diagnose for a full health check.`,
       { parse_mode: "HTML" }
     );
-  });
+  };
+  bot.command("status", sendStatus);
 
   bot.command("login", (ctx) =>
     ctx.reply(
@@ -671,7 +672,7 @@ export function createBot() {
       };
       const fn = dispatch[parsed.command];
       if (fn) return void (await fn(ctx, parsed.args));
-      if (parsed.command === "status") return void (await bot.handleUpdate({ ...ctx.update, message: { ...ctx.message, text: "/status" } } as any));
+      if (parsed.command === "status") return void (await sendStatus(ctx));
       return;
     }
     if (parsed && parsed.confidence === "likely") {
