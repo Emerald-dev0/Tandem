@@ -8,8 +8,8 @@
  * See SETUP.md "Option 1 — Vercel (no card, no local)".
  */
 
-import { createBot, registerCommands } from "../dist/bot.js";
-import { config } from "../dist/config.js";
+import { createBot, registerCommands } from "./_lib/bot.js";
+import { config } from "./_lib/config.js";
 
 let handlerPromise = null;
 
