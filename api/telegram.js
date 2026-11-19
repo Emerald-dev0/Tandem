@@ -17,6 +17,7 @@
 
 import { createBot, registerCommands } from "./_lib/bot.js";
 import { config } from "./_lib/config.js";
+import { setBotUsername } from "./_lib/store.js";
 
 const WEBHOOK_PATH = "/api/telegram";
 
@@ -28,7 +29,8 @@ let readyPromise = null;
  * domain stays put across redeploys.
  */
 function getWebhookUrl() {
-  if (config.webhookUrl) return config.webhookUrl.replace(/\/$/, "");
+  const clean = (u) => u.replace(/\/+$/, "").replace(/\/api\/telegram$/, "");
+  if (config.webhookUrl) return clean(config.webhookUrl);
   if (process.env.VERCEL_PROJECT_PRODUCTION_URL)
     return `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`;
   if (process.env.VERCEL_URL) return `https://${process.env.VERCEL_URL}`;
@@ -53,6 +55,7 @@ async function ensureReady() {
       // Verify the token first — a clear 401 beats a vague webhook error.
       const me = await bot.telegram.getMe();
       bot.botInfo = me; // skip the per-update getMe lookup
+      await setBotUsername(me.username).catch(() => {}); // for OAuth deep links
 
       await registerCommands(bot);
 
@@ -116,6 +119,8 @@ export default async function handler(req, res) {
         service: "Tandem",
         status: "alive",
         mode: "vercel-webhook",
+        version: "0.3.0",
+        phases: "1-10",
         ...info,
         telegram,
       });

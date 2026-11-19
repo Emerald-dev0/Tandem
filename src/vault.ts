@@ -4,6 +4,9 @@
  * ENCRYPTION_KEY: 64 hex chars (32 bytes). If it's missing, the bot can
  * generate one for you from Telegram (/connect → Generate) so setup never
  * needs a terminal.
+ *
+ * Also here: small crypto helpers (random ids, HMAC) used by the OAuth
+ * state flow and webhook verification.
  */
 
 import crypto from "node:crypto";
@@ -45,4 +48,22 @@ export function decrypt(packed: string): string {
     decipher.update(Buffer.from(dataHex, "hex")),
     decipher.final(),
   ]).toString("utf8");
+}
+
+// ── Misc crypto helpers ─────────────────────────────────────────────
+
+export function randomHex(bytes = 16): string {
+  return crypto.randomBytes(bytes).toString("hex");
+}
+
+/** HMAC-SHA256 hex signature with a timing-safe compare on verify. */
+export function hmacSign(secret: string, data: string | Buffer): string {
+  return crypto.createHmac("sha256", secret).update(data).digest("hex");
+}
+
+export function hmacVerify(secret: string, data: string | Buffer, signature: string): boolean {
+  const expected = hmacSign(secret, data);
+  const a = Buffer.from(expected, "hex");
+  const b = Buffer.from(signature.replace(/^sha256=/, ""), "hex");
+  return a.length === b.length && crypto.timingSafeEqual(a, b);
 }

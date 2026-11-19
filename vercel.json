@@ -7,6 +7,21 @@
   "functions": {
     "api/telegram.js": {
       "maxDuration": 60
+    },
+    "api/oauth/callback.js": {
+      "maxDuration": 30
+    },
+    "api/webhooks/github.js": {
+      "maxDuration": 30
+    },
+    "api/cron/digest.js": {
+      "maxDuration": 60
     }
-  }
+  },
+  "crons": [
+    {
+      "path": "/api/cron/digest",
+      "schedule": "0 8 * * *"
+    }
+  ]
 }

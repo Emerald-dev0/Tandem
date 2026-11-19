@@ -251,6 +251,68 @@ Phase 2 is live. Next: **Phase 3 — GitHub**, so you can say
 
 ---
 
+## Step 7 — ☀️ Morning checklist (everything the bot needs, ~15 min)
+
+Tandem now covers Phases 1–10: all four providers, natural language,
+workflows, monitoring and hardening. It runs — it just needs your
+credentials. Work through this list when you wake up:
+
+### A. Database — Neon Postgres (2 min, free, no card)
+
+1. Vercel → **Storage** → **Create** → **Neon** (Marketplace) → accept the free plan.
+2. Pick `tandem-kappa-three` as the project → it injects `POSTGRES_URL` /
+   `POSTGRES_URL_NON_POOLING` automatically. Nothing to paste.
+3. That's it — Tandem auto-creates its schema on first request.
+
+### B. GitHub — best: GitHub App (5 min)
+
+1. GitHub → **Settings → Developer settings → GitHub Apps → New GitHub App**.
+2. **Callback URL**: `https://tandem-kappa-three.vercel.app/api/oauth/callback`
+   **Setup URL**: same as callback.
+3. **Webhook URL**: `https://tandem-kappa-three.vercel.app/api/webhooks/github`
+   + pick any webhook secret (save it as `GITHUB_WEBHOOK_SECRET` in Vercel).
+4. Permissions: *Contents: RW, Pull requests: RW, Issues: RW, Actions: RW,
+   Metadata: R, Administration: RW (for repo webhooks), Webhooks: RW*.
+5. Where can it be installed? **Any account** → create → then:
+   - Download the **private key (.pem)** → paste contents as `GITHUB_APP_PRIVATE_KEY`
+   - Copy **App ID** → `GITHUB_APP_ID`, **App slug** → `GITHUB_APP_SLUG`
+   - **Client ID** → `GITHUB_APP_CLIENT_ID`, **Client secret** → `GITHUB_APP_CLIENT_SECRET`
+6. Slightly easier alternative (or in addition): a plain **GitHub OAuth app**
+   (`OAUTH_GITHUB_CLIENT_ID` / `OAUTH_GITHUB_CLIENT_SECRET`) — one tap connect,
+   scopes `repo workflow read:org user`.
+
+### C. Vercel OAuth (3 min)
+
+1. vercel.com → **Settings → OAuth Apps → Create**.
+2. Redirect URL: `https://tandem-kappa-three.vercel.app/api/oauth/callback`
+3. Scopes: deployments (RW), projects (R), env (RW).
+4. Copy **Client ID** → `OAUTH_VERCEL_CLIENT_ID`, **Secret** → `OAUTH_VERCEL_CLIENT_SECRET`.
+   (Fallback: just paste a Vercel token in the bot — works today.)
+
+### D. Cloudflare (3 min)
+
+1. dash.cloudflare.com → **My Profile → API Tokens → OAuth Apps → Create**.
+2. Redirect URL: `https://tandem-kappa-three.vercel.app/api/oauth/callback`
+3. Scopes: `user:read`, `zone:read`, `zone:write`.
+4. → `OAUTH_CLOUDFLARE_CLIENT_ID` / `OAUTH_CLOUDFLARE_CLIENT_SECRET`.
+   (Fallback: create a scoped API token with the same permissions and paste it in the bot.)
+
+### E. Render (1 min)
+
+1. dashboard.render.com → **Account Settings → API Keys → Create**.
+2. → `RENDER_API_KEY` in Vercel (or paste it into the bot).
+
+### F. Hardening (1 min, optional but recommended)
+
+- `OWNER_TELEGRAM_USERNAME` = your Telegram username (locks the bot to you).
+- `CRON_SECRET` = any long random string (protects the daily digest cron).
+- `GITHUB_WEBHOOK_SECRET` = the same secret you set on the GitHub App.
+
+Then **Redeploy** once. Send the bot `/diagnose` — every line should be green.
+`/connect` shows one-tap "Log in with…" buttons for each provider.
+
+---
+
 ## Troubleshooting
 
 | Problem | Fix |
