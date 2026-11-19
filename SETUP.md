@@ -313,6 +313,26 @@ Then **Redeploy** once. Send the bot `/diagnose` — every line should be green.
 
 ---
 
+## Step 8 — 🌐 Use your own domain (optional)
+
+Want `tandem.oluwadaredaniel.me` instead of `tandem-kappa-three.vercel.app`? Takes ~5 minutes:
+
+1. Vercel → your project → **Settings → Domains** → add `tandem.oluwadaredaniel.me`
+2. At the DNS provider where `oluwadaredaniel.me` lives, add the record Vercel shows
+   (for a subdomain it's `CNAME  tandem  →  cname.vercel-dns.com`)
+3. Vercel → **Settings → Environment Variables**: set
+   `WEBHOOK_URL=https://tandem.oluwadaredaniel.me` → **Redeploy**
+
+That's it. The bot re-registers its Telegram webhook automatically on the next
+deploy, and OAuth callbacks + GitHub webhooks follow the same base URL.
+
+💡 When you create the OAuth apps (Step 7), use
+`https://tandem.oluwadaredaniel.me/api/oauth/callback` as the redirect URL so
+everything points at the pretty domain from day one. Same for the GitHub App's
+webhook URL: `https://tandem.oluwadaredaniel.me/api/webhooks/github`.
+
+---
+
 ## Troubleshooting
 
 | Problem | Fix |
