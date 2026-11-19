@@ -14,6 +14,7 @@ import {
 import { ProviderError } from "../providers/http.js";
 import { providerDef } from "../providers/index.js";
 import { checkLimit } from "../ratelimit.js";
+import { randomHex } from "../vault.js";
 
 export function escapeHtml(s: string): string {
   return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
@@ -93,13 +94,16 @@ type ConfirmFn = () => Promise<void>;
 const confirmRegistry = new Map<string, ConfirmFn>();
 
 export function askConfirm(ctx: Context, key: string, question: string, yesLabel: string, run: ConfirmFn) {
-  confirmRegistry.set(key, run);
+  // Unique per confirmation and per user — two users confirming similar
+  // actions can never trigger each other's closures.
+  const scopedKey = `${ctx.from?.id ?? 0}:${randomHex(6)}:${key}`.slice(0, 56);
+  confirmRegistry.set(scopedKey, run);
   // Auto-expire keys so the map can't grow forever.
-  setTimeout(() => confirmRegistry.delete(key), 10 * 60 * 1000).unref?.();
+  setTimeout(() => confirmRegistry.delete(scopedKey), 10 * 60 * 1000).unref?.();
   return ctx.reply(`⚠️ ${question}`, {
     parse_mode: "HTML",
     reply_markup: Markup.inlineKeyboard([
-      [Markup.button.callback(yesLabel, `confirm:${key}`)],
+      [Markup.button.callback(yesLabel, `confirm:${scopedKey}`)],
       [Markup.button.callback("🚫 Cancel", "flow:cancel")],
     ]).reply_markup,
   });

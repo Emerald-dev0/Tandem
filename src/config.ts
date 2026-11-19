@@ -12,6 +12,11 @@ export const config = {
   webhookSecret: process.env.WEBHOOK_SECRET ?? "",
   port: Number(process.env.PORT ?? 3000),
   ownerUsername: (process.env.OWNER_TELEGRAM_USERNAME ?? "").replace("@", ""),
+  /** Optional beta allowlist: comma-separated Telegram user IDs. Empty = everyone allowed. */
+  allowedUserIds: (process.env.TELEGRAM_ALLOWED_USER_IDS ?? "")
+    .split(",")
+    .map((s) => Number(s.trim()))
+    .filter((n) => Number.isFinite(n) && n > 0),
 
   /** Public origin of this deployment — OAuth callbacks and links use this. */
   publicBaseUrl: (() => {

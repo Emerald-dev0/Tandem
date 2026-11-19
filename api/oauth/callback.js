@@ -74,13 +74,16 @@ async function latestPending(provider) {
   const { getStorage } = await import("../_lib/storage.js");
   const kv = getStorage();
   const keys = await kv.list("tandem:oauth:state:");
-  for (const key of keys.reverse()) {
+  const matches = [];
+  for (const key of keys) {
     const raw = await kv.get(key);
     if (!raw) continue;
     const parsed = JSON.parse(raw);
-    if (parsed.provider === provider) return { userId: parsed.userId, provider: parsed.provider };
+    if (parsed.provider === provider) matches.push({ userId: parsed.userId, provider: parsed.provider });
   }
-  return null;
+  // Only safe when unambiguous — with several users connecting at once we
+  // can't guess who the install belongs to.
+  return matches.length === 1 ? matches[0] : null;
 }
 
 function fail(res, provider, reason) {
