@@ -17,6 +17,8 @@ export class ProviderError extends Error {
 interface FetchOpts {
   method?: string;
   body?: unknown;
+  /** Send as application/x-www-form-urlencoded (OAuth token endpoints per RFC 6749). */
+  form?: Record<string, string>;
   headers?: Record<string, string>;
   timeoutMs?: number;
   /** When true, return the raw Response instead of parsed JSON. */
@@ -24,7 +26,7 @@ interface FetchOpts {
 }
 
 export async function pfetch(url: string, token: string | null, opts: FetchOpts = {}): Promise<any> {
-  const { method = "GET", body, headers = {}, timeoutMs = 20000, raw = false } = opts;
+  const { method = "GET", body, form, headers = {}, timeoutMs = 20000, raw = false } = opts;
   let res: Response;
   try {
     res = await fetch(url, {
@@ -34,10 +36,16 @@ export async function pfetch(url: string, token: string | null, opts: FetchOpts 
         Accept: "application/json",
         "User-Agent": "Tandem-Bot",
         ...(body !== undefined ? { "Content-Type": "application/json" } : {}),
+        ...(form !== undefined ? { "Content-Type": "application/x-www-form-urlencoded" } : {}),
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
         ...headers,
       },
-      body: body !== undefined ? JSON.stringify(body) : undefined,
+      body:
+        body !== undefined
+          ? JSON.stringify(body)
+          : form !== undefined
+            ? new URLSearchParams(form).toString()
+            : undefined,
     });
   } catch (err) {
     throw new ProviderError(`Network error talking to the provider: ${(err as Error).message}`);

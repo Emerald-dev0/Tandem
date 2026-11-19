@@ -16,25 +16,28 @@ export default async function handler(req, res) {
   if (req.method !== "GET") return res.status(405).json({ ok: false, error: "GET only" });
 
   const q = req.query ?? {};
-  const providerRaw = String(q.provider ?? (q.installation_id ? "github_app" : ""));
   const state = String(q.state ?? "");
   const code = q.code ? String(q.code) : undefined;
   const installationId = q.installation_id ? String(q.installation_id) : undefined;
 
   try {
+    // Resolve the Telegram user via the single-use state nonce FIRST — the
+    // state record also knows which provider this connect belongs to.
+    let session = state ? await consumeOAuthState(state) : null;
+    if (!session && q.installation_id) {
+      // GitHub App installs occasionally drop `state` — fall back to the
+      // pending github_app connect when it's unambiguous.
+      session = await latestPending("github_app");
+    }
+
+    // Provider can arrive as ?provider=, via the state record, or (for App
+    // installs) via installation_id.
+    const providerRaw = String(q.provider ?? session?.provider ?? (q.installation_id ? "github_app" : ""));
     if (!VALID.has(providerRaw)) {
-      return fail(res, providerRaw || "unknown", "unknown provider");
+      return fail(res, providerRaw || "connection", "this link couldn't be identified — send /connect and try again");
     }
     if (q.error) {
       return fail(res, providerRaw, String(q.error_description || q.error));
-    }
-
-    // Bind to the Telegram user via the single-use state nonce.
-    let session = state ? await consumeOAuthState(state) : null;
-    if (!session && providerRaw === "github_app") {
-      // GitHub App installs occasionally drop `state` — fall back to the most
-      // recent pending github_app connect (personal-scale bot, single operator).
-      session = await latestPending("github_app");
     }
     if (!session) {
       return fail(res, providerRaw, "connect link expired or already used — send /connect again");

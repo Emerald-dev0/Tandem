@@ -223,7 +223,16 @@ const captured = [];
 globalThis.fetch = async (url, opts = {}) => {
   const method = opts.method ?? "GET";
   const u = String(url);
-  captured.push({ url: u, method, body: opts.body ? JSON.parse(opts.body) : undefined });
+  let body;
+  if (opts.body) {
+    try {
+      body = JSON.parse(opts.body);
+    } catch {
+      body = String(opts.body); // form-encoded bodies (OAuth exchanges)
+    }
+  }
+  captured.push({ url: u, method, body });
+  if (u.includes("login/oauth/access_token")) return jsonResponse({ access_token: "tok_cb_test", token_type: "bearer" });
   if (u.endsWith("/user")) return jsonResponse({ login: "octo", id: 1 });
   if (u.includes("/user/repos"))
     return jsonResponse([
@@ -293,6 +302,50 @@ assert2(
 );
 const savedTasks = await store.listTasks(999, 5);
 assert2("workflow task recorded in store", savedTasks.length >= 1, String(savedTasks.length));
+
+// OAuth callback regression: GitHub redirects back WITHOUT ?provider= — the
+// handler must resolve the provider from the state record (this exact bug
+// produced "unknown: unknown provider" in production).
+const cbModule = await import("../api/oauth/callback.js");
+const savedState = "cbstate123";
+await store.saveOAuthState(savedState, 999, "github");
+const cbRes = {
+  code: 0,
+  headers: {},
+  body: "",
+  status(c) {
+    this.code = c;
+    return this;
+  },
+  json(o) {
+    this.body = JSON.stringify(o);
+    return this;
+  },
+  send(html) {
+    this.body = String(html);
+    return this;
+  },
+  writeHead(c, h) {
+    this.code = c;
+    this.headers = h ?? {};
+  },
+  end() {},
+};
+await cbModule.default({ method: "GET", query: { code: "testcode", state: savedState } }, cbRes);
+assert2(
+  "callback resolves provider from state without ?provider= param",
+  (cbRes.code === 302 && String(cbRes.headers.Location ?? "").includes("t.me")) ||
+    (cbRes.code === 200 && cbRes.body.includes("Connected")),
+  `status=${cbRes.code} body=${cbRes.body.slice(0, 120)}`
+);
+const cbConn = await store.getConnection(999, "github");
+assert2("callback stored the exchanged connection", Boolean(cbConn && cbConn.token === "tok_cb_test"), JSON.stringify(cbConn));
+const cbExch = captured.filter((c) => c.url.includes("login/oauth/access_token")).at(-1);
+assert2(
+  "token exchange is form-encoded (RFC 6749)",
+  typeof cbExch?.body === "string" && cbExch.body.includes("client_id="),
+  JSON.stringify(cbExch?.body)
+);
 
 console.log(`\n${failures === 0 ? "✅ ALL CASES + MODULE CHECKS PASS" : `❌ ${failures} FAILURES`}`);
 process.exit(failures === 0 ? 0 : 1);
