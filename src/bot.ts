@@ -24,6 +24,10 @@ function userFromCtx(ctx: Context) {
   });
 }
 
+function escapeHtml(s: string): string {
+  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+
 function comingSoon(ctx: Context, feature: string, phase: string) {
   return ctx.reply(
     `⏳ <b>${feature}</b> is coming in ${phase}.\n\n` +
@@ -73,7 +77,7 @@ export function createBot() {
   // ── /start ────────────────────────────────────────────────────────
   bot.start(async (ctx) => {
     const user = userFromCtx(ctx);
-    const name = user?.firstName ?? "there";
+    const name = escapeHtml(user?.firstName ?? "there");
     const isNew = user && user.createdAt.getTime() > Date.now() - 5000;
 
     await ctx.reply(
@@ -140,8 +144,8 @@ export function createBot() {
     if (!user) return ctx.reply("I couldn't identify your Telegram account.");
     return ctx.reply(
       `<b>👤 Your Tandem profile</b>\n\n` +
-        `Name: ${user.firstName ?? "—"}\n` +
-        `Telegram: @${user.telegramUsername ?? "—"}\n` +
+        `Name: ${escapeHtml(user.firstName ?? "—")}\n` +
+        `Telegram: @${escapeHtml(user.telegramUsername ?? "—")}\n` +
         `Telegram ID: <code>${user.telegramUserId}</code>\n` +
         `Workspace: <code>${user.workspaceId}</code>\n` +
         `Member since: ${user.createdAt.toLocaleDateString()}\n` +
@@ -378,7 +382,10 @@ export function createBot() {
   // ── Error handling ────────────────────────────────────────────────
   bot.catch((err, ctx) => {
     console.error("Bot error:", err);
-    ctx?.reply("⚠️ Something went wrong on my side. Please try again in a moment.").catch(() => {});
+    const detail = String((err as Error)?.message ?? err).slice(0, 200);
+    ctx
+      ?.reply(`⚠️ Something went wrong on my side: ${detail}\n\nPlease try again in a moment.`)
+      .catch(() => {});
   });
 
   return bot;
