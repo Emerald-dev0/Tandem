@@ -217,12 +217,37 @@ fly deploy
 
 ---
 
-## Step 5 — What's next?
+## Step 5 — Phase 2 setup: persistence + vault (2 minutes, no card)
 
-Once your bot replies to `/start`, tell me and we'll move to **Phase 2**:
-the integration framework — how Tandem securely connects to GitHub, Vercel,
-Cloudflare and Render with encrypted, scoped credentials. Then GitHub (Phase 3)
-so you can actually create your first repository from Telegram.
+Phase 2 adds encrypted credential storage so Tandem can connect GitHub/Vercel/Cloudflare/Render.
+Two free additions to your Vercel project — both from the dashboard:
+
+### 1. Persistent storage (Upstash Redis — free, no card)
+
+1. Vercel → your Tandem project → **Storage** tab → **Create** → **Upstash Redis** (Free plan)
+2. Click **Connect** — Vercel injects `UPSTASH_REDIS_REST_URL` + `UPSTASH_REDIS_REST_TOKEN` automatically
+3. **Redeploy** so the bot picks them up
+
+Without this the bot still works, but accounts reset on every cold start.
+
+### 2. Encryption key (the bot makes this one for you)
+
+1. In Telegram, send `/connect` → tap **🔐 Generate encryption key**
+2. Copy the key it shows you
+3. Vercel → Settings → Environment Variables → add `ENCRYPTION_KEY` = the key
+4. **Delete the key message in Telegram**, then **Redeploy**
+
+Done. Now `/connect github` (or vercel / cloudflare / render) works: paste a
+provider token, Tandem verifies it against the provider's API, encrypts it
+(AES-256-GCM) and stores it. `/connections` lists what's connected,
+`/disconnect` removes it.
+
+---
+
+## Step 6 — What's next?
+
+Phase 2 is live. Next: **Phase 3 — GitHub**, so you can say
+"create a repo called my-app" in Telegram and it actually happens.
 
 ---
 

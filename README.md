@@ -34,7 +34,7 @@ hosting Tandem itself. See SETUP.md Step 4.
 ## Roadmap
 
 - [x] **Phase 1** — Telegram foundation (bot, commands, menus, accounts)
-- [ ] **Phase 2** — Integration framework (secure connections, encryption)
+- [x] **Phase 2** — Integration framework (secure connections, encryption, persistent storage)
 - [ ] **Phase 3** — GitHub (repos, files, branches, PRs)
 - [ ] **Phase 4** — Vercel (projects, deployments, domains)
 - [ ] **Phase 5** — Cloudflare (zones, DNS)
@@ -48,5 +48,5 @@ hosting Tandem itself. See SETUP.md Step 4.
 
 - **Runtime:** Node.js 18+ / TypeScript
 - **Telegram:** Telegraf (Bot API)
-- **Database:** PostgreSQL (Phase 1.5+)
+- **Storage:** Upstash Redis (Phase 2, free on Vercel) → PostgreSQL later
 - **Queue:** Redis + BullMQ (Phase 8+)
