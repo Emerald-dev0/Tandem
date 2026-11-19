@@ -49,7 +49,7 @@ export const BOT_COMMANDS = [
   { command: "connections", description: "List connected providers" },
   { command: "disconnect", description: "Disconnect a provider" },
   { command: "repos", description: "List connected repositories" },
-  { command: "create-repo", description: "Create a repository" },
+  { command: "create_repo", description: "Create a repository" },
   { command: "projects", description: "List Vercel projects" },
   { command: "deploy", description: "Trigger a deployment" },
   { command: "zones", description: "List Cloudflare zones" },
@@ -58,7 +58,13 @@ export const BOT_COMMANDS = [
 ];
 
 export async function registerCommands(bot: Telegraf) {
-  await bot.telegram.setMyCommands(BOT_COMMANDS);
+  // Telegram only accepts [a-z0-9_] in command names — normalize hyphens
+  // so the menu never fails with BOT_COMMAND_INVALID.
+  const sanitized = BOT_COMMANDS.map((c) => ({
+    ...c,
+    command: c.command.replace(/-/g, "_"),
+  }));
+  await bot.telegram.setMyCommands(sanitized);
 }
 
 export function createBot() {
@@ -106,7 +112,7 @@ export function createBot() {
 /disconnect — Disconnect a provider
 
 <b>GitHub</b>
-/repos · /create-repo · /repo · /file · /commit · /branch · /branches
+/repos · /create_repo · /repo · /file · /commit · /branch · /branches
 /pr · /prs · /issue · /issues · /release · /releases · /workflow · /runs
 
 <b>Vercel</b>
@@ -221,7 +227,9 @@ export function createBot() {
     comingSoon(ctx, label, phase);
 
   bot.command("repos", stub("Listing repositories", "Phase 3 — GitHub"));
-  bot.command("create-repo", stub("Creating a repository", "Phase 3 — GitHub"));
+  const createRepoStub = stub("Creating a repository", "Phase 3 — GitHub");
+  bot.command("create_repo", createRepoStub);
+  bot.command("create-repo", createRepoStub); // alias — typed commands aren't menu-validated
   bot.command("repo", stub("Inspecting a repository", "Phase 3 — GitHub"));
   bot.command("file", stub("File management", "Phase 3 — GitHub"));
   bot.command("commit", stub("Committing changes", "Phase 3 — GitHub"));
