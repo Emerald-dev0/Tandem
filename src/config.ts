@@ -40,9 +40,11 @@ export const config = {
   cronSecret: process.env.CRON_SECRET ?? "",
 
   oauth: {
+    // Both naming styles are accepted: the documented OAUTH_* names and the
+    // bare names (GITHUB_CLIENT_ID, …) — either set works.
     github: {
-      clientId: process.env.GITHUB_CLIENT_ID ?? "",
-      clientSecret: process.env.GITHUB_CLIENT_SECRET ?? "",
+      clientId: process.env.OAUTH_GITHUB_CLIENT_ID ?? process.env.GITHUB_CLIENT_ID ?? "",
+      clientSecret: process.env.OAUTH_GITHUB_CLIENT_SECRET ?? process.env.GITHUB_CLIENT_SECRET ?? "",
     },
     /** GitHub App — "install Tandem on your account" flow. */
     githubApp: {
@@ -50,14 +52,16 @@ export const config = {
       privateKey: (process.env.GITHUB_APP_PRIVATE_KEY ?? "").replace(/\\n/g, "\n"),
       slug: process.env.GITHUB_APP_SLUG ?? "",
       webhookSecret: process.env.GITHUB_WEBHOOK_SECRET ?? "",
+      clientId: process.env.GITHUB_APP_CLIENT_ID ?? process.env.OAUTH_GITHUB_APP_CLIENT_ID ?? "",
+      clientSecret: process.env.GITHUB_APP_CLIENT_SECRET ?? process.env.OAUTH_GITHUB_APP_CLIENT_SECRET ?? "",
     },
     vercel: {
-      clientId: process.env.VERCEL_CLIENT_ID ?? "",
-      clientSecret: process.env.VERCEL_CLIENT_SECRET ?? "",
+      clientId: process.env.OAUTH_VERCEL_CLIENT_ID ?? process.env.VERCEL_CLIENT_ID ?? "",
+      clientSecret: process.env.OAUTH_VERCEL_CLIENT_SECRET ?? process.env.VERCEL_CLIENT_SECRET ?? "",
     },
     cloudflare: {
-      clientId: process.env.CLOUDFLARE_CLIENT_ID ?? "",
-      clientSecret: process.env.CLOUDFLARE_CLIENT_SECRET ?? "",
+      clientId: process.env.OAUTH_CLOUDFLARE_CLIENT_ID ?? process.env.CLOUDFLARE_CLIENT_ID ?? "",
+      clientSecret: process.env.OAUTH_CLOUDFLARE_CLIENT_SECRET ?? process.env.CLOUDFLARE_CLIENT_SECRET ?? "",
     },
   },
 };
@@ -68,7 +72,14 @@ export function oauthEnabled(provider: string): boolean {
     case "github":
       return Boolean(config.oauth.github.clientId && config.oauth.github.clientSecret);
     case "github_app":
-      return Boolean(config.oauth.githubApp.appId && config.oauth.githubApp.privateKey && config.oauth.githubApp.slug);
+      return Boolean(
+        config.oauth.githubApp.appId &&
+          config.oauth.githubApp.privateKey &&
+          config.oauth.githubApp.slug &&
+          // The code exchange needs OAuth client credentials (the app's own pair).
+          (config.oauth.githubApp.clientId || config.oauth.github.clientId) &&
+          (config.oauth.githubApp.clientSecret || config.oauth.github.clientSecret)
+      );
     case "vercel":
       return Boolean(config.oauth.vercel.clientId && config.oauth.vercel.clientSecret);
     case "cloudflare":

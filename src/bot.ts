@@ -195,7 +195,7 @@ const helpText = `
 💬 Or just <b>talk to me</b> — "create a private repo called calder-api",
 "deploy my-app to vercel", "list dns for example.com", "purge cache for example.com".
 
-<i>Tandem v0.3.0 — /status shows the full build state.</i>
+<i>Tandem v0.3.1 — /status shows the full build state.</i>
 `.trim();
 
 // ── Bot factory ─────────────────────────────────────────────────────
@@ -297,7 +297,7 @@ export function createBot() {
           : "🟡 in-memory (connect Neon Postgres in Vercel → Storage)";
     const vault = vaultReady() ? "🟢 ready" : "🟡 no ENCRYPTION_KEY yet";
     return ctx.reply(
-      `<b>📊 Tandem status</b> v0.3.0\n\n` +
+      `<b>📊 Tandem status</b> v0.3.1\n\n` +
         `Bot: 🟢 online\nUsers: ${await userCount()}\nStorage: ${storage}\nVault: ${vault}\n\n${lines.join("\n")}\n\n` +
         `/diagnose for a full health check.`,
       { parse_mode: "HTML" }
