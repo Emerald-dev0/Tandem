@@ -35,7 +35,7 @@ export interface ProjectSummary {
   updatedAt?: number;
 }
 
-export async function listProjects(token: string, limit = 10): Promise<ProjectSummary[]> {
+export async function listProjects(token: string, limit = 25): Promise<ProjectSummary[]> {
   const data = await pfetch(teamSep(`${API}/v9/projects?limit=${limit}`), token);
   return (data.projects ?? []).map((p: any) => ({
     id: p.id,
@@ -112,7 +112,7 @@ export async function restoreDeployment(token: string, deploymentId: string): Pr
   return { id: d.id, url: d.url, state: d.readyState ?? "QUEUED", createdAt: d.createdAt };
 }
 
-export async function listDeployments(token: string, project?: string, limit = 8): Promise<DeploySummary[]> {
+export async function listDeployments(token: string, project?: string, limit = 15): Promise<DeploySummary[]> {
   let url = teamSep(`${API}/v6/deployments?limit=${limit}`);
   if (project) {
     const p = await pfetch(teamSep(`${API}/v9/projects/${encodeURIComponent(project)}`), token);

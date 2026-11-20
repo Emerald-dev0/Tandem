@@ -2,7 +2,7 @@
  * GitHub commands (Phase 3) — real API calls through the vaulted connection.
  */
 
-import { Telegraf, Context } from "telegraf";
+import { Telegraf, Context, Markup } from "telegraf";
 import * as gh from "../providers/github.js";
 import { withProvider, escapeHtml, fmtAgo, askConfirm, formatError } from "./shared.js";
 import { config } from "../config.js";
@@ -12,16 +12,36 @@ function argsOf(ctx: Context): string[] {
   return text.split(/\s+/).slice(1).filter(Boolean);
 }
 
+const REPOS_PER_PAGE = 20;
+
 export async function cmdRepos(ctx: Context, args: string[]) {
+  const page = Math.max(1, Number(args[0]) || 1);
   await withProvider(ctx, "github", "repos.list", async (conn) => {
-    const repos = await gh.listRepos(conn, Number(args[0]) || 1);
-    if (!repos.length) return "📂 No repositories found.";
+    const { repos, hasNextPage } = await gh.listRepos(conn, page, REPOS_PER_PAGE);
+    if (!repos.length) {
+      return page === 1
+        ? '📂 <b>No repositories found.</b>\n\nCreate one — say <i>"create a private repo called my-app"</i> or use /create_repo my-app.'
+        : `📂 Nothing on page ${page} — that was the end of the list.`;
+    }
     const lines = repos.map(
-      (r) =>
+      (r, i) =>
+        `${String((page - 1) * REPOS_PER_PAGE + i + 1).padStart(2, " ")}. ` +
         `${r.private ? "🔒" : "🌐"} <a href="${r.url}">${escapeHtml(r.fullName)}</a>` +
-        `${r.description ? ` — ${escapeHtml(r.description.slice(0, 50))}` : ""} <i>${fmtAgo(r.updatedAt)}</i>`
+        `${r.description ? ` — ${escapeHtml(r.description.slice(0, 40))}` : ""} <i>${fmtAgo(r.updatedAt)}</i>`
     );
-    return `📂 <b>Your repositories</b>\n\n${lines.join("\n")}\n\n/repo owner/name for details.`;
+    return {
+      text:
+        `📂 <b>Your repositories</b> — page ${page}\n\n` +
+        lines.join("\n") +
+        `\n\n/repo owner/name for details.${hasNextPage ? "" : " <i>That's everything.</i>"}`,
+      extra: hasNextPage
+        ? {
+            reply_markup: Markup.inlineKeyboard([
+              [Markup.button.callback("➡️ Show more", `repos:page:${page + 1}`)],
+            ]).reply_markup,
+          }
+        : undefined,
+    };
   });
 }
 
@@ -238,6 +258,7 @@ export async function cmdCollaborators(ctx: Context, args: string[]) {
 
 export function register(bot: Telegraf) {
   bot.command("repos", (ctx) => cmdRepos(ctx, argsOf(ctx)));
+  bot.action(/^repos:page:(\d+)$/, (ctx) => cmdRepos(ctx, [String(ctx.match?.[1] ?? "2")]));
   const createRepo = (ctx: Context) => cmdCreateRepo(ctx, argsOf(ctx));
   bot.command("create_repo", createRepo);
   bot.command("create-repo", createRepo);

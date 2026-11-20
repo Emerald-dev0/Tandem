@@ -119,7 +119,7 @@ export default async function handler(req, res) {
         service: "Tandem",
         status: "alive",
         mode: "vercel-webhook",
-        version: "0.3.2",
+        version: "0.3.3",
         phases: "1-10",
         ...info,
         telegram,
