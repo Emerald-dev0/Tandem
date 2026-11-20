@@ -2,8 +2,8 @@ import { Icon } from "./Icon";
 
 export function Nav() {
   return (
-    <nav>
-      <div className="wrap nav-in">
+    <div className="nav-wrap">
+      <nav className="nav-pill">
         <a className="logo" href="#top">
           <span className="mark">
             <Icon name="tg" />
@@ -23,7 +23,7 @@ export function Nav() {
         >
           <Icon name="tg" /> Open in Telegram
         </a>
-      </div>
-    </nav>
+      </nav>
+    </div>
   );
 }

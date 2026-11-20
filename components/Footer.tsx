@@ -4,10 +4,10 @@ export function Footer() {
   return (
     <footer>
       <div className="wrap foot-in">
-        <div className="logo" style={{ fontSize: 17 }}>
+        <div className="logo" style={{ fontSize: 16 }}>
           <span
             className="mark"
-            style={{ width: 28, height: 28, borderRadius: 9, fontSize: 14 }}
+            style={{ width: 27, height: 27, borderRadius: 9, fontSize: 13 }}
           >
             <Icon name="tg" />
           </span>
