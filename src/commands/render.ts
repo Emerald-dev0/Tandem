@@ -4,7 +4,7 @@
 
 import { Telegraf, Context } from "telegraf";
 import * as rd from "../providers/render.js";
-import { withProvider, escapeHtml, fmtAgo, askConfirm } from "./shared.js";
+import { withProvider, escapeHtml, fmtAgo, askConfirm, comingSoon } from "./shared.js";
 import { argsOf } from "./github.js";
 
 export async function cmdServices(ctx: Context) {
@@ -71,9 +71,12 @@ export async function cmdServiceStatus(ctx: Context, args: string[]) {
 }
 
 export function register(bot: Telegraf) {
-  bot.command("services", (ctx) => cmdServices(ctx));
-  bot.command("service", (ctx) => cmdService(ctx, argsOf(ctx)));
-  bot.command("create-service", (ctx) => cmdCreateService(ctx, argsOf(ctx)));
-  bot.command("restart", (ctx) => cmdRestart(ctx, argsOf(ctx)));
-  bot.command("service-status", (ctx) => cmdServiceStatus(ctx, argsOf(ctx)));
+  // Render is built but held back for launch focus (GitHub + Vercel first).
+  // Flip these back to the cmd* handlers to re-enable.
+  const soon = (ctx: Context) => comingSoon(ctx, "Render");
+  bot.command("services", soon);
+  bot.command("service", soon);
+  bot.command("create-service", soon);
+  bot.command("restart", soon);
+  bot.command("service-status", soon);
 }

@@ -135,6 +135,17 @@ export async function runConfirm(key: string): Promise<boolean> {
   return true;
 }
 
+// ── Coming-soon placeholder ────────────────────────────────────────
+
+export function comingSoon(ctx: Context, feature: string) {
+  return ctx.reply(
+    `⏳ <b>${escapeHtml(feature)} support is coming soon to Tandem.</b>\n\n` +
+      `We're perfecting <b>GitHub</b> and <b>Vercel</b> first — ${escapeHtml(feature)} is on the roadmap and lands in one of the next updates.\n\n` +
+      `Meanwhile /repos, /deploy, /search and friends all work today.`,
+    { parse_mode: "HTML" }
+  );
+}
+
 // ── Formatting helpers ──────────────────────────────────────────────
 
 export function fmtAgo(isoOrMs?: string | number): string {
