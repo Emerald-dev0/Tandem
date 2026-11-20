@@ -1,0 +1,3 @@
+{
+  "/api/oauth/callback": "pages/api/oauth/callback.js"
+}

@@ -1,0 +1,12 @@
+{
+  "/_app": "pages/_app.js",
+  "/_document": "pages/_document.js",
+  "/_error": "pages/_error.js",
+  "/api": "pages/api.js",
+  "/api/cron/digest": "pages/api/cron/digest.js",
+  "/api/oauth/callback": "pages/api/oauth/callback.js",
+  "/api/oauth/start": "pages/api/oauth/start.js",
+  "/api/telegram": "pages/api/telegram.js",
+  "/api/webhooks/github": "pages/api/webhooks/github.js",
+  "/404": "pages/404.html"
+}

@@ -1,0 +1,12 @@
+var R=require("../../chunks/[turbopack]_runtime.js")("server/pages/api/telegram.js")
+R.c("server/chunks/[root-of-the-server]__0arjxbtqbffpf._.js")
+R.c("server/chunks/dist_oauth_1truhuwxtdjqj.js")
+R.c("server/chunks/[root-of-the-server]__1he65ng3lphx-._.js")
+R.c("server/chunks/[root-of-the-server]__0pwrmyc39alu0._.js")
+R.c("server/chunks/dist_providers_0yrk42g5juwqa._.js")
+R.c("server/chunks/[root-of-the-server]__0dm5d66o_5m-k._.js")
+R.c("server/chunks/[root-of-the-server]__05bet_yb2zaqz._.js")
+R.c("server/chunks/dist_store_1_2ewecak-737.js")
+R.c("server/chunks/dist_providers_0n2qzto4d0z1r._.js")
+R.m(65175)
+module.exports=R.m(65175).exports

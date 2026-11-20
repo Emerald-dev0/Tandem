@@ -1,0 +1,3 @@
+module.exports=[31600,a=>{"use strict";var b=a.i(72131);a.s(["ScrollReveal",0,function(){return(0,b.useEffect)(()=>{let a=new IntersectionObserver(b=>{let c=0;for(let d of b)d.isIntersecting&&(d.target.style.transitionDelay=90*c+++"ms",d.target.classList.add("on"),a.unobserve(d.target))},{threshold:.12});return document.querySelectorAll(".reveal").forEach(b=>a.observe(b)),()=>a.disconnect()},[]),null}])}];
+
+//# sourceMappingURL=components_ScrollReveal_tsx_1mqypfo6cpgvw._.js.map
