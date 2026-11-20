@@ -113,19 +113,31 @@ export interface RepoSummary {
   updatedAt?: string;
 }
 
-export async function listRepos(conn: GithubConn, page = 1): Promise<RepoSummary[]> {
+export async function listRepos(
+  conn: GithubConn,
+  page = 1,
+  perPage = 20
+): Promise<{ repos: RepoSummary[]; hasNextPage: boolean }> {
   const token = await githubAccessToken(conn);
-  const rows = await gh(
+  const res = await gh(
     token,
-    `${API}/user/repos?sort=updated&per_page=10&page=${Math.max(1, page)}&affiliation=owner,collaborator`
+    `${API}/user/repos?sort=pushed&direction=desc&per_page=${perPage}&page=${Math.max(1, page)}&affiliation=owner,collaborator,organization_member`,
+    { raw: true }
   );
-  return (rows as any[]).map((r) => ({
-    fullName: r.full_name,
-    private: r.private,
-    url: r.html_url,
-    description: r.description ?? undefined,
-    updatedAt: r.updated_at ?? undefined,
-  }));
+  const parsed = (await res.json()) as unknown;
+  const rows = Array.isArray(parsed) ? (parsed as any[]) : [];
+  const link = typeof res.headers?.get === "function" ? (res.headers.get("link") ?? "") : "";
+  const hasNextPage = link.includes('rel="next"') || (!link && rows.length >= perPage);
+  return {
+    repos: rows.map((r) => ({
+      fullName: r.full_name,
+      private: r.private,
+      url: r.html_url,
+      description: r.description ?? undefined,
+      updatedAt: r.pushed_at ?? r.updated_at ?? undefined,
+    })),
+    hasNextPage,
+  };
 }
 
 export async function createRepo(

@@ -44,15 +44,21 @@ export interface ProviderConn {
   identity?: string;
 }
 
+export interface ProviderResult {
+  text: string;
+  extra?: Record<string, unknown>;
+}
+
 /**
  * Run a provider operation with connection + rate limit + error mapping
  * + activity logging. Replies with a connect prompt when not connected.
+ * `fn` may return a plain HTML string or { text, extra } for buttons.
  */
 export async function withProvider(
   ctx: Context,
   provider: string,
   action: string,
-  fn: (conn: ProviderConn, user: TandemUser) => Promise<string | void>
+  fn: (conn: ProviderConn, user: TandemUser) => Promise<string | ProviderResult | void>
 ): Promise<void> {
   const user = await userFromCtx(ctx);
   if (!user) return void (await ctx.reply("I couldn't identify your Telegram account."));
@@ -79,7 +85,15 @@ export async function withProvider(
   try {
     const result = await fn({ authType: conn.authType, token: conn.token, identity: conn.identity }, user);
     await logActivity(user.telegramUserId, provider, action).catch(() => {});
-    if (result) await ctx.reply(result, { parse_mode: "HTML", link_preview_options: { is_disabled: true } });
+    if (typeof result === "string") {
+      await ctx.reply(result, { parse_mode: "HTML", link_preview_options: { is_disabled: true } });
+    } else if (result && typeof result.text === "string") {
+      await ctx.reply(result.text, {
+        parse_mode: "HTML",
+        link_preview_options: { is_disabled: true },
+        ...(result.extra ?? {}),
+      } as Parameters<typeof ctx.reply>[1]);
+    }
   } catch (err) {
     await ctx.reply(formatError(err), { parse_mode: "HTML" });
   }

@@ -267,8 +267,18 @@ globalThis.fetch = async (url, opts = {}) => {
 
 const gh = await import("../api/_lib/providers/github.js");
 const repos = await gh.listRepos({ authType: "pat", token: "ghp_x" }, 1);
-assert2("github listRepos parses response", repos.length === 1 && repos[0].fullName === "octo/calder-api", JSON.stringify(repos));
+assert2(
+  "github listRepos parses response",
+  repos.repos.length === 1 && repos.repos[0].fullName === "octo/calder-api",
+  JSON.stringify(repos)
+);
 assert2("github request goes to api.github.com", captured.at(-1).url.includes("api.github.com"), captured.at(-1).url);
+assert2(
+  "listRepos includes org-member repos",
+  captured.at(-1).url.includes("organization_member") && captured.at(-1).url.includes("sort=pushed"),
+  captured.at(-1).url
+);
+assert2("listRepos reports end of list on short page", repos.hasNextPage === false, JSON.stringify(repos.hasNextPage));
 const f = await gh.getFile({ authType: "pat", token: "ghp_x" }, "octo/calder-api", "a.ts");
 assert2("github getFile base64-decodes content", f.text === "hi" && f.sha === "deadbeef", JSON.stringify(f));
 // GitHub's create-or-update endpoint: PUT with sha = update, PUT without sha = create.
