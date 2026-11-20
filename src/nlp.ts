@@ -120,12 +120,96 @@ const RULES: Rule[] = [
       echo: `run workflow ${m[1]}`,
     }),
   },
+
+  // ── Website parity: GitHub ──
+  {
+    re: /^(?:star|add a star to)\s+(?:the\s+)?([\w./-]+)\s*$/i,
+    build: (m) => ({ command: "star", args: [m[1]], confidence: "exact", echo: `star ${m[1]}` }),
+  },
+  {
+    re: /^(?:unstar|remove (?:my )?star from)\s+(?:the\s+)?([\w./-]+)\s*$/i,
+    build: (m) => ({ command: "unstar", args: [m[1]], confidence: "exact", echo: `unstar ${m[1]}` }),
+  },
+  {
+    re: /^(?:fork|make a fork of)\s+(?:the\s+)?([\w./-]+)\s*$/i,
+    build: (m) => ({ command: "fork", args: [m[1]], confidence: "exact", echo: `fork ${m[1]}` }),
+  },
+  {
+    re: /^(?:search(?:\s+for)?|look up)\s+(.+)$/i,
+    build: (m) => ({ command: "search", args: m[1].split(/\s+/), confidence: "exact", echo: `search GitHub for "${m[1].slice(0, 30)}"` }),
+  },
+  {
+    re: /^(?:show|list|get)?\s*(?:the\s+)?(?:recent\s+)?commits(?:\s+(?:for|on|in)\s+([\w./-]+))?(?:\s+(?:on|from)\s+([\w./-]+))?\s*$/i,
+    build: (m) => ({
+      command: "commits",
+      args: m[1] ? [m[1], ...(m[2] ? [m[2]] : [])] : [],
+      confidence: "exact",
+      echo: `show commits${m[1] ? ` for ${m[1]}` : ""}`,
+    }),
+  },
+  {
+    re: /^(?:view|show|open)\s+(?:pr|pull request)\s*#?(\d+)\s+(?:in|on)\s+([\w./-]+)\s*$/i,
+    build: (m) => ({ command: "pr", args: ["view", m[2], m[1]], confidence: "exact", echo: `show PR #${m[1]} in ${m[2]}` }),
+  },
+  {
+    re: /^(?:comment on\s+)(?:pr|pull request)\s*#?(\d+)\s+(?:in|on)\s+([\w./-]+)\s+(.+)$/i,
+    build: (m) => ({ command: "pr", args: ["comment", m[2], m[1], m[3]], confidence: "exact", echo: `comment on PR #${m[1]} in ${m[2]}` }),
+  },
+  {
+    re: /^(?:close|reopen)\s+(?:pr|pull request)\s*#?(\d+)\s+(?:in|on)\s+([\w./-]+)\s*$/i,
+    build: (m) => ({
+      command: "pr",
+      args: [m[0].toLowerCase().startsWith("close") ? "close" : "reopen", m[2], m[1]],
+      confidence: "exact",
+      echo: `${m[0].toLowerCase().startsWith("close") ? "close" : "reopen"} PR #${m[1]} in ${m[2]}`,
+    }),
+  },
+  {
+    re: /^(?:view|show|open)\s+(?:issue|bug)\s*#?(\d+)\s+(?:in|on)\s+([\w./-]+)\s*$/i,
+    build: (m) => ({ command: "issue", args: ["view", m[2], m[1]], confidence: "exact", echo: `show issue #${m[1]} in ${m[2]}` }),
+  },
+  {
+    re: /^(?:comment on\s+)(?:issue|bug)\s*#?(\d+)\s+(?:in|on)\s+([\w./-]+)\s+(.+)$/i,
+    build: (m) => ({ command: "issue", args: ["comment", m[2], m[1], m[3]], confidence: "exact", echo: `comment on issue #${m[1]} in ${m[2]}` }),
+  },
+  {
+    re: /^(?:close|reopen)\s+(?:issue|bug)\s*#?(\d+)\s+(?:in|on)\s+([\w./-]+)\s*$/i,
+    build: (m) => ({
+      command: "issue",
+      args: [m[0].toLowerCase().startsWith("close") ? "close" : "reopen", m[2], m[1]],
+      confidence: "exact",
+      echo: `${m[0].toLowerCase().startsWith("close") ? "close" : "reopen"} issue #${m[1]} in ${m[2]}`,
+    }),
+  },
+  {
+    re: /^(?:delete|remove)\s+(?:the\s+)?(?:repo|repository)\s+([\w./-]+)\s*$/i,
+    build: (m) => ({ command: "repo-delete", args: [m[1]], confidence: "exact", echo: `delete repository ${m[1]} (will ask to confirm)` }),
+  },
+
+  // ── Website parity: Vercel ──
+  {
+    re: /^(?:promote|push to production|make live)\s+(?:deployment\s+)?(\S+)\s*$/i,
+    build: (m) => ({ command: "promote", args: [m[1]], confidence: "exact", echo: `promote ${m[1]} to production (will ask to confirm)` }),
+  },
+  {
+    re: /^(?:cancel|stop|abort)\s+(?:the\s+)?(?:deployment|deploy)\s+(\S+)\s*$/i,
+    build: (m) => ({ command: "deployment-cancel", args: [m[1]], confidence: "exact", echo: `cancel deployment ${m[1]}` }),
+  },
+  {
+    re: /^(?:delete|remove)\s+(?:the\s+)?(?:vercel\s+)?project\s+([\w-]+)\s*$/i,
+    build: (m) => ({ command: "project-delete", args: [m[1]], confidence: "exact", echo: `delete Vercel project ${m[1]} (will ask to confirm)` }),
+  },
 ];
 
 /** Keyword cues for "likely" suggestions when no exact rule matches. */
 const CUES: { words: string[]; command: string; hint: string }[] = [
   { words: ["repo", "repository"], command: "repos", hint: "try \"list my repos\" or /repos" },
   { words: ["deploy"], command: "deployments", hint: "try \"deploy my-app to vercel\" or /deployments" },
+  { words: ["star", "fork"], command: "repos", hint: "try \"star owner/name\" or \"fork owner/name\"" },
+  { words: ["search", "find", "look up"], command: "search", hint: "try \"search for <query>\" or /search <query>" },
+  { words: ["commit"], command: "commits", hint: "try \"show commits for owner/name\" or /commits owner/name" },
+  { words: ["comment", "review"], command: "pr", hint: "try \"comment on pr 12 in owner/name <text>\"" },
+  { words: ["promote", "production"], command: "promote", hint: "try \"promote <deployment-id>\" or /promote <deployment-id>" },
   { words: ["dns", "record", "domain"], command: "dns", hint: "try \"list dns for example.com\" or /dns" },
   { words: ["zone", "cloudflare"], command: "zones", hint: "try /zones" },
   { words: ["service", "render"], command: "services", hint: "try /services" },

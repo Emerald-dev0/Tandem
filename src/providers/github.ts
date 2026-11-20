@@ -400,3 +400,212 @@ export async function ensureRepoWebhook(
   });
   return { created: true, hookId: hook.id };
 }
+
+// ── Website-parity operations ──────────────────────────────────────
+
+export async function searchRepos(conn: GithubConn, q: string, perPage = 8) {
+  const token = await githubAccessToken(conn);
+  const data = await gh(token, `${API}/search/repositories?q=${encodeURIComponent(q)}&per_page=${perPage}&sort=updated`);
+  return ((data.items ?? []) as any[]).map((r) => ({
+    fullName: r.full_name,
+    private: r.private,
+    url: r.html_url,
+    description: r.description ?? undefined,
+    updatedAt: r.pushed_at ?? undefined,
+    stars: r.stargazers_count ?? 0,
+  }));
+}
+
+export async function searchIssues(conn: GithubConn, q: string, perPage = 8) {
+  const token = await githubAccessToken(conn);
+  const data = await gh(token, `${API}/search/issues?q=${encodeURIComponent(q)}&per_page=${perPage}`);
+  return ((data.items ?? []) as any[]).map((i) => ({
+    number: i.number,
+    title: i.title,
+    url: i.html_url,
+    state: i.state,
+    repo: String(i.repository_url ?? "").split("/repos/")[1] ?? "",
+    isPR: Boolean(i.pull_request),
+  }));
+}
+
+export async function listCommits(conn: GithubConn, full: string, ref?: string, perPage = 10) {
+  const repo = parseRepo(full);
+  if (!repo) throw new ProviderError(`"${full}" isn't in owner/name form.`);
+  const token = await githubAccessToken(conn);
+  const q = `?per_page=${perPage}${ref ? `&sha=${encodeURIComponent(ref)}` : ""}`;
+  const rows = await gh(token, `${API}/repos/${repo.owner}/${repo.repo}/commits${q}`);
+  return ((rows ?? []) as any[]).map((c) => ({
+    sha: String(c.sha ?? "").slice(0, 7),
+    message: String(c.commit?.message ?? "").split("\n")[0],
+    author: c.commit?.author?.name ?? c.author?.login ?? "?",
+    date: c.commit?.author?.date,
+    url: c.html_url,
+  }));
+}
+
+export async function getCommit(conn: GithubConn, full: string, sha: string) {
+  const repo = parseRepo(full);
+  if (!repo) throw new ProviderError(`"${full}" isn't in owner/name form.`);
+  const token = await githubAccessToken(conn);
+  const c = await gh(token, `${API}/repos/${repo.owner}/${repo.repo}/commits/${encodeURIComponent(sha)}`);
+  return {
+    sha: String(c.sha ?? "").slice(0, 7),
+    message: String(c.commit?.message ?? ""),
+    author: c.commit?.author?.name ?? "?",
+    date: c.commit?.author?.date,
+    url: c.html_url,
+    stats: { additions: c.stats?.additions ?? 0, deletions: c.stats?.deletions ?? 0 },
+    files: ((c.files ?? []) as any[]).slice(0, 15).map((f) => ({
+      name: f.filename,
+      additions: f.additions ?? 0,
+      deletions: f.deletions ?? 0,
+      status: f.status,
+    })),
+  };
+}
+
+export async function getPR(conn: GithubConn, full: string, number: number) {
+  const repo = parseRepo(full);
+  if (!repo) throw new ProviderError(`"${full}" isn't in owner/name form.`);
+  const token = await githubAccessToken(conn);
+  const p = await gh(token, `${API}/repos/${repo.owner}/${repo.repo}/pulls/${number}`);
+  return {
+    number: p.number,
+    title: p.title,
+    body: String(p.body ?? "").slice(0, 500),
+    state: p.state,
+    draft: Boolean(p.draft),
+    mergeable: p.mergeable,
+    url: p.html_url,
+    author: p.user?.login ?? "?",
+    head: p.head?.ref ?? "?",
+    base: p.base?.ref ?? "?",
+    changedFiles: p.changed_files ?? 0,
+  };
+}
+
+export async function commentPR(conn: GithubConn, full: string, number: number, body: string) {
+  const repo = parseRepo(full);
+  if (!repo) throw new ProviderError(`"${full}" isn't in owner/name form.`);
+  const token = await githubAccessToken(conn);
+  const c = await gh(token, `${API}/repos/${repo.owner}/${repo.repo}/issues/${number}/comments`, {
+    method: "POST",
+    body: { body },
+  });
+  return { url: c.html_url };
+}
+
+export async function setPRState(conn: GithubConn, full: string, number: number, state: "open" | "closed") {
+  const repo = parseRepo(full);
+  if (!repo) throw new ProviderError(`"${full}" isn't in owner/name form.`);
+  const token = await githubAccessToken(conn);
+  const p = await gh(token, `${API}/repos/${repo.owner}/${repo.repo}/pulls/${number}`, {
+    method: "PATCH",
+    body: { state },
+  });
+  return { number: p.number, state: p.state };
+}
+
+export async function getIssue(conn: GithubConn, full: string, number: number) {
+  const repo = parseRepo(full);
+  if (!repo) throw new ProviderError(`"${full}" isn't in owner/name form.`);
+  const token = await githubAccessToken(conn);
+  const i = await gh(token, `${API}/repos/${repo.owner}/${repo.repo}/issues/${number}`);
+  return {
+    number: i.number,
+    title: i.title,
+    body: String(i.body ?? "").slice(0, 500),
+    state: i.state,
+    url: i.html_url,
+    author: i.user?.login ?? "?",
+    labels: ((i.labels ?? []) as any[]).map((l) => l.name ?? String(l)),
+    assignees: ((i.assignees ?? []) as any[]).map((a) => a.login),
+  };
+}
+
+export async function commentIssue(conn: GithubConn, full: string, number: number, body: string) {
+  return commentPR(conn, full, number, body);
+}
+
+export async function setIssueState(conn: GithubConn, full: string, number: number, state: "open" | "closed") {
+  const repo = parseRepo(full);
+  if (!repo) throw new ProviderError(`"${full}" isn't in owner/name form.`);
+  const token = await githubAccessToken(conn);
+  const i = await gh(token, `${API}/repos/${repo.owner}/${repo.repo}/issues/${number}`, {
+    method: "PATCH",
+    body: { state },
+  });
+  return { number: i.number, state: i.state };
+}
+
+export async function labelIssue(conn: GithubConn, full: string, number: number, labels: string[]) {
+  const repo = parseRepo(full);
+  if (!repo) throw new ProviderError(`"${full}" isn't in owner/name form.`);
+  const token = await githubAccessToken(conn);
+  await gh(token, `${API}/repos/${repo.owner}/${repo.repo}/issues/${number}/labels`, {
+    method: "POST",
+    body: { labels },
+  });
+  return { labels };
+}
+
+export async function starRepo(conn: GithubConn, full: string) {
+  const repo = parseRepo(full);
+  if (!repo) throw new ProviderError(`"${full}" isn't in owner/name form.`);
+  const token = await githubAccessToken(conn);
+  await gh(token, `${API}/user/starred/${repo.owner}/${repo.repo}`, { method: "PUT", body: {} });
+  return true;
+}
+
+export async function unstarRepo(conn: GithubConn, full: string) {
+  const repo = parseRepo(full);
+  if (!repo) throw new ProviderError(`"${full}" isn't in owner/name form.`);
+  const token = await githubAccessToken(conn);
+  await gh(token, `${API}/user/starred/${repo.owner}/${repo.repo}`, { method: "DELETE" });
+  return true;
+}
+
+export async function forkRepo(conn: GithubConn, full: string) {
+  const repo = parseRepo(full);
+  if (!repo) throw new ProviderError(`"${full}" isn't in owner/name form.`);
+  const token = await githubAccessToken(conn);
+  const f = await gh(token, `${API}/repos/${repo.owner}/${repo.repo}/forks`, { method: "POST", body: {} });
+  return { fullName: f.full_name, url: f.html_url };
+}
+
+export async function updateRepo(
+  conn: GithubConn,
+  full: string,
+  patch: { description?: string; private?: boolean }
+) {
+  const repo = parseRepo(full);
+  if (!repo) throw new ProviderError(`"${full}" isn't in owner/name form.`);
+  const token = await githubAccessToken(conn);
+  const r = await gh(token, `${API}/repos/${repo.owner}/${repo.repo}`, { method: "PATCH", body: patch });
+  return { fullName: r.full_name, private: r.private, description: r.description };
+}
+
+export async function deleteRepo(conn: GithubConn, full: string) {
+  const repo = parseRepo(full);
+  if (!repo) throw new ProviderError(`"${full}" isn't in owner/name form.`);
+  const token = await githubAccessToken(conn);
+  await gh(token, `${API}/repos/${repo.owner}/${repo.repo}`, { method: "DELETE" });
+  return true;
+}
+
+export async function cancelRun(conn: GithubConn, full: string, runId: number) {
+  const repo = parseRepo(full);
+  if (!repo) throw new ProviderError(`"${full}" isn't in owner/name form.`);
+  const token = await githubAccessToken(conn);
+  await gh(token, `${API}/repos/${repo.owner}/${repo.repo}/actions/runs/${runId}/cancel`, { method: "POST", body: {} });
+  return true;
+}
+
+export async function rerunRun(conn: GithubConn, full: string, runId: number) {
+  const repo = parseRepo(full);
+  if (!repo) throw new ProviderError(`"${full}" isn't in owner/name form.`);
+  const token = await githubAccessToken(conn);
+  await gh(token, `${API}/repos/${repo.owner}/${repo.repo}/actions/runs/${runId}/rerun`, { method: "POST", body: {} });
+  return true;
+}

@@ -207,6 +207,26 @@ assert2("nlp: weak match suggests only", Boolean(t7 && t7.confidence === "likely
 const t8 = nlp.parse("the quick brown fox");
 assert2("nlp: unmatched text returns null", t8 === null, JSON.stringify(t8));
 
+// Phase 11 NL — website parity
+const n1 = nlp.parse("star octo/calder-api");
+assert2("nlp: star octo/calder-api", Boolean(n1 && n1.command === "star" && n1.args[0] === "octo/calder-api"), JSON.stringify(n1));
+const n2 = nlp.parse("search for auth bug");
+assert2("nlp: search for auth bug", Boolean(n2 && n2.command === "search" && n2.args.join(" ") === "auth bug"), JSON.stringify(n2));
+const n3 = nlp.parse("comment on pr 42 in octo/calder-api looks good to me");
+assert2(
+  "nlp: comment on pr 42",
+  Boolean(n3 && n3.command === "pr" && n3.args[0] === "comment" && n3.args[1] === "octo/calder-api" && n3.args[2] === "42" && n3.args[3] === "looks good to me"),
+  JSON.stringify(n3)
+);
+const n4 = nlp.parse("close issue 7 in octo/calder-api");
+assert2("nlp: close issue 7", Boolean(n4 && n4.command === "issue" && n4.args[0] === "close" && n4.args[2] === "7"), JSON.stringify(n4));
+const n5 = nlp.parse("promote dpl_abc123");
+assert2("nlp: promote deployment", Boolean(n5 && n5.command === "promote" && n5.args[0] === "dpl_abc123"), JSON.stringify(n5));
+const n6 = nlp.parse("delete repo octo/old-project");
+assert2("nlp: delete repo routes to confirmed command", Boolean(n6 && n6.command === "repo-delete"), JSON.stringify(n6));
+const n7 = nlp.parse("show commits for octo/calder-api");
+assert2("nlp: show commits for repo", Boolean(n7 && n7.command === "commits" && n7.args[0] === "octo/calder-api"), JSON.stringify(n7));
+
 // Rate limiting (Phase 10)
 const rl = await import("../api/_lib/ratelimit.js");
 let floodBlocked = false;
@@ -234,6 +254,10 @@ globalThis.fetch = async (url, opts = {}) => {
   captured.push({ url: u, method, body });
   if (u.includes("login/oauth/access_token")) return jsonResponse({ access_token: "tok_cb_test", token_type: "bearer" });
   if (u.endsWith("/user")) return jsonResponse({ login: "octo", id: 1 });
+  if (u.includes("/search/issues")) return jsonResponse({ items: [{ number: 7, title: "login bug", html_url: "https://x/7", state: "open", repository_url: "https://api.github.com/repos/octo/calder-api" }] });
+  if (u.includes("/search/repositories")) return jsonResponse({ items: [{ full_name: "octo/calder-api", private: false, html_url: "https://x", stargazers_count: 3, pushed_at: "2026-11-18T07:00:00Z", description: "x" }] });
+  if (u.includes("/user/starred/")) return jsonResponse({});
+  if (u.includes("/comments")) return jsonResponse({ html_url: "https://x/c1" });
   if (u.includes("/user/repos"))
     return jsonResponse([
       {
@@ -294,6 +318,22 @@ assert2(
   captured.at(-1).method === "PUT" && !captured.at(-1).body.sha,
   JSON.stringify(captured.at(-1))
 );
+
+// Phase 11 ops: star / comment / search
+await gh.starRepo({ authType: "pat", token: "ghp_x" }, "octo/calder-api");
+assert2(
+  "github starRepo sends PUT to /user/starred",
+  captured.at(-1).method === "PUT" && captured.at(-1).url.includes("/user/starred/octo/calder-api"),
+  JSON.stringify(captured.at(-1))
+);
+await gh.commentPR({ authType: "pat", token: "ghp_x" }, "octo/calder-api", 42, "looks good");
+assert2(
+  "github commentPR posts to issue comments",
+  captured.at(-1).method === "POST" && captured.at(-1).url.includes("/issues/42/comments") && captured.at(-1).body.body === "looks good",
+  JSON.stringify(captured.at(-1))
+);
+const sr = await gh.searchIssues({ authType: "pat", token: "ghp_x" }, "login bug");
+assert2("github searchIssues parses results", sr.length === 1 && sr[0].repo === "octo/calder-api", JSON.stringify(sr));
 
 // Workflow run (Phase 8) — diagnose touches vault + connections only.
 const wf = await import("../api/_lib/workflows.js");
