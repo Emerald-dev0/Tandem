@@ -200,4 +200,45 @@ export async function deploymentEvents(token: string, deploymentId: string) {
   }));
 }
 
+// ── Website-parity operations ──────────────────────────────────────
+
+export async function deleteProject(token: string, nameOrId: string) {
+  await pfetch(teamSep(`${API}/v9/projects/${encodeURIComponent(nameOrId)}`), token, { method: "DELETE" });
+  return true;
+}
+
+export async function cancelDeployment(token: string, id: string) {
+  await pfetch(teamSep(`${API}/v13/deployments/${encodeURIComponent(id)}/cancel`), token, {
+    method: "POST",
+    body: {},
+  });
+  return true;
+}
+
+export async function promoteDeployment(token: string, id: string, alias: string) {
+  const data = await pfetch(teamSep(`${API}/v2/deployments/${encodeURIComponent(id)}/aliases`), token, {
+    method: "POST",
+    body: { alias },
+  });
+  return { alias: data.alias ?? alias };
+}
+
+export async function removeDomain(token: string, project: string, domain: string) {
+  await pfetch(
+    teamSep(`${API}/v9/projects/${encodeURIComponent(project)}/domains/${encodeURIComponent(domain)}`),
+    token,
+    { method: "DELETE" }
+  );
+  return true;
+}
+
+export async function updateEnv(token: string, project: string, envId: string, value: string) {
+  const data = await pfetch(
+    teamSep(`${API}/v9/projects/${encodeURIComponent(project)}/env/${encodeURIComponent(envId)}`),
+    token,
+    { method: "PATCH", body: { value } }
+  );
+  return { id: data.id ?? envId, key: data.key };
+}
+
 export { teamQuery };

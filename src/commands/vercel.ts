@@ -124,6 +124,12 @@ export async function cmdEnv(ctx: Context, args: string[]) {
   const [sub, project, key, ...rest] = args;
   if (sub === "set" && project && key) {
     return withProvider(ctx, "vercel", "env.set", async (conn) => {
+      const vars = await vc.listEnv(conn.token, project);
+      const existing = vars.find((v: { key: string; id: string }) => v.key === key);
+      if (existing) {
+        await vc.updateEnv(conn.token, project, existing.id, rest.join(" "));
+        return `✅ Env <code>${escapeHtml(key)}</code> updated on ${escapeHtml(project)}.`;
+      }
       await vc.setEnv(conn.token, project, key, rest.join(" "));
       return `✅ Env <code>${escapeHtml(key)}</code> set on ${escapeHtml(project)} (production).`;
     });
@@ -183,6 +189,69 @@ export async function cmdLogs(ctx: Context, args: string[]) {
   });
 }
 
+// ── Website-parity commands ────────────────────────────────────────
+
+export async function cmdPromote(ctx: Context, args: string[]) {
+  const [deploymentId] = args;
+  if (!deploymentId) return ctx.reply("Usage: /promote <deployment-id>\nMakes that deployment the live production one.");
+  await withProvider(ctx, "vercel", "deployments.get", async (conn) => {
+    const d = await vc.getDeployment(conn.token, deploymentId);
+    const projectName = String((d as any).project ?? (d as any).name ?? "");
+    const alias = `${projectName}.vercel.app`;
+    await askConfirm(
+      ctx,
+      `promote:${String(deploymentId).slice(0, 12)}`,
+      `Promote deployment <code>${escapeHtml(String(deploymentId).slice(0, 12))}</code> to <b>production</b>?\nIt becomes the live ${escapeHtml(alias)}.`,
+      "🚀 Yes, promote it",
+      async () => {
+        await withProvider(ctx, "vercel", "deployments.promote", async (c2) => {
+          const r = await vc.promoteDeployment(c2.token, deploymentId, alias);
+          return `🚀 Deployed to production — https://${escapeHtml(r.alias)}`;
+        });
+      }
+    );
+  });
+}
+
+export async function cmdDeploymentCancel(ctx: Context, args: string[]) {
+  const [deploymentId] = args;
+  if (!deploymentId) return ctx.reply("Usage: /deployment-cancel <deployment-id>");
+  await withProvider(ctx, "vercel", "deployments.cancel", async (conn) => {
+    await vc.cancelDeployment(conn.token, deploymentId);
+    return `🚫 Cancelling deployment <code>${escapeHtml(String(deploymentId).slice(0, 12))}</code>.`;
+  });
+}
+
+export async function cmdProjectDelete(ctx: Context, args: string[]) {
+  const [name] = args;
+  if (!name) return ctx.reply("Usage: /project-delete <name>");
+  const key = `pdel:${name.replace(/\W/g, "").slice(0, 16)}`;
+  return askConfirm(
+    ctx,
+    key,
+    `🚨 Permanently delete Vercel project <b>${escapeHtml(name)}</b> and its deployments?`,
+    "🗑 Yes, delete it",
+    async () => {
+      await withProvider(ctx, "vercel", "projects.delete", async (conn) => {
+        await vc.deleteProject(conn.token, name);
+        return `🗑 Project <b>${escapeHtml(name)}</b> deleted.`;
+      });
+    }
+  );
+}
+
+export async function cmdDomainRemove(ctx: Context, args: string[]) {
+  const [project, domain] = args;
+  if (!project || !domain) return ctx.reply("Usage: /domain-remove <project> <domain>");
+  const key = `ddel:${domain.replace(/\W/g, "").slice(0, 16)}`;
+  return askConfirm(ctx, key, `Remove domain <b>${escapeHtml(domain)}</b> from ${escapeHtml(project)}?`, "🗑 Yes, remove it", async () => {
+    await withProvider(ctx, "vercel", "domains.remove", async (conn) => {
+      await vc.removeDomain(conn.token, project, domain);
+      return `🗑 Domain ${escapeHtml(domain)} removed from ${escapeHtml(project)}.`;
+    });
+  });
+}
+
 export function register(bot: Telegraf) {
   bot.command("projects", (ctx) => cmdProjects(ctx, argsOf(ctx)));
   bot.command("create-project", (ctx) => cmdCreateProject(ctx, argsOf(ctx)));
@@ -194,4 +263,8 @@ export function register(bot: Telegraf) {
   bot.command("env", (ctx) => cmdEnv(ctx, argsOf(ctx)));
   bot.command("domains", (ctx) => cmdDomains(ctx, argsOf(ctx)));
   bot.command("logs", (ctx) => cmdLogs(ctx, argsOf(ctx)));
+  bot.command("promote", (ctx) => cmdPromote(ctx, argsOf(ctx)));
+  bot.command("deployment-cancel", (ctx) => cmdDeploymentCancel(ctx, argsOf(ctx)));
+  bot.command("project-delete", (ctx) => cmdProjectDelete(ctx, argsOf(ctx)));
+  bot.command("domain-remove", (ctx) => cmdDomainRemove(ctx, argsOf(ctx)));
 }

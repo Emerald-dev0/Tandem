@@ -45,8 +45,8 @@ import { checkLimit, LIMITS } from "./ratelimit.js";
 import { escapeHtml, looksSecret, runConfirm, userFromCtx } from "./commands/shared.js";
 
 // Command modules (Phases 3–9)
-import { register as registerGithub, cmdRepos, cmdCreateRepo } from "./commands/github.js";
-import { register as registerVercel, cmdDeploy, cmdDeployments, cmdProjects } from "./commands/vercel.js";
+import { register as registerGithub, cmdRepos, cmdCreateRepo, cmdSearch, cmdStar, cmdUnstar, cmdFork, cmdCommits, cmdCommitInfo, cmdPr, cmdIssue, cmdRepoEdit, cmdRepoDelete } from "./commands/github.js";
+import { register as registerVercel, cmdDeploy, cmdDeployments, cmdProjects, cmdPromote, cmdDeploymentCancel, cmdProjectDelete } from "./commands/vercel.js";
 import { register as registerCloudflare, cmdZones, cmdDns, cmdDnsAdd, cmdPurge } from "./commands/cloudflare.js";
 import { register as registerRender, cmdServices, cmdRestart } from "./commands/render.js";
 import {
@@ -171,12 +171,14 @@ const helpText = `
 /connections · /disconnect · /permissions
 
 <b>GitHub</b>
-/repos · /create_repo · /repo · /file · /commit · /branch · /branches
+/repos · /create_repo · /repo · /repo-edit · /repo-delete · /file · /commit
+/branch · /branches · /commits · /commit-info · /search · /star · /unstar · /fork
 /pr · /prs · /issue · /issues · /release · /releases · /workflow · /runs
 
 <b>Vercel</b>
-/projects · /create-project · /project · /deploy · /redeploy
-/deployments · /deployment · /env · /domains · /logs
+/projects · /create-project · /project · /project-delete · /deploy · /redeploy
+/deployments · /deployment · /deployment-cancel · /promote · /env · /domains
+/domain-remove · /logs
 
 <b>Cloudflare</b>
 /zones · /zone · /dns · /dns-add · /dns-update · /dns-delete · /dns-check
@@ -193,9 +195,10 @@ const helpText = `
 /start · /help · /profile · /status · /settings · /workspace · /cancel
 
 💬 Or just <b>talk to me</b> — "create a private repo called calder-api",
-"deploy my-app to vercel", "list dns for example.com", "purge cache for example.com".
+"deploy my-app to vercel", "search for auth bug", "star owner/repo",
+"comment on pr 12 in owner/repo looks good", "promote dpl_x".
 
-<i>Tandem v0.3.3 — /status shows the full build state.</i>
+<i>Tandem v0.4.0 — /status shows the full build state.</i>
 `.trim();
 
 // ── Bot factory ─────────────────────────────────────────────────────
@@ -297,7 +300,7 @@ export function createBot() {
           : "🟡 in-memory (connect Neon Postgres in Vercel → Storage)";
     const vault = vaultReady() ? "🟢 ready" : "🟡 no ENCRYPTION_KEY yet";
     return ctx.reply(
-      `<b>📊 Tandem status</b> v0.3.3\n\n` +
+      `<b>📊 Tandem status</b> v0.4.0\n\n` +
         `Bot: 🟢 online\nUsers: ${await userCount()}\nStorage: ${storage}\nVault: ${vault}\n\n${lines.join("\n")}\n\n` +
         `/diagnose for a full health check.`,
       { parse_mode: "HTML" }
@@ -696,6 +699,19 @@ export function createBot() {
         activity: cmdActivity,
         run: cmdRun,
         workflows: cmdWorkflows,
+        search: cmdSearch,
+        star: cmdStar,
+        unstar: cmdUnstar,
+        fork: cmdFork,
+        commits: cmdCommits,
+        "commit-info": cmdCommitInfo,
+        pr: cmdPr,
+        issue: cmdIssue,
+        "repo-edit": cmdRepoEdit,
+        "repo-delete": cmdRepoDelete,
+        promote: cmdPromote,
+        "deployment-cancel": cmdDeploymentCancel,
+        "project-delete": cmdProjectDelete,
       };
       const fn = dispatch[parsed.command];
       if (fn) return void (await fn(ctx, parsed.args));

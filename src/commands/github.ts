@@ -139,11 +139,36 @@ export async function cmdPrs(ctx: Context, args: string[]) {
 }
 
 export async function cmdPr(ctx: Context, args: string[]) {
-  const [sub, full, a, b, ...rest] = args;
-  if (sub === "create" && full && a && b) {
+  const [sub, full, a, ...rest] = args;
+  if (sub === "create" && full && a && rest.length) {
     return withProvider(ctx, "github", "prs.create", async (conn) => {
-      const p = await gh.createPR(conn, full, rest.join(" ") || `Merge ${a} into ${b}`, a, b);
+      const p = await gh.createPR(conn, full, rest.slice(1).join(" ") || `Merge ${a} into ${rest[0]}`, a, rest[0]);
       return `✅ PR #${p.number} opened: <a href="${p.url}">${escapeHtml(p.title)}</a>`;
+    });
+  }
+  if (sub === "view" && full && a) {
+    return withProvider(ctx, "github", "prs.get", async (conn) => {
+      const p = await gh.getPR(conn, full, Number(a));
+      return (
+        `🔀 <b>PR #${p.number}</b> [${escapeHtml(p.state)}${p.draft ? " · draft" : ""}]\n` +
+        `<a href="${p.url}">${escapeHtml(p.title)}</a>\n\n` +
+        `${p.body ? `${escapeHtml(p.body)}\n\n` : ""}` +
+        `<code>${escapeHtml(p.head)} → ${escapeHtml(p.base)}</code> · ${p.changedFiles} file(s) · by @${escapeHtml(p.author)}\n` +
+        `Mergeable: ${p.mergeable === false ? "no (conflicts)" : "yes"}\n\n` +
+        `/pr comment ${escapeHtml(full)} ${p.number} <text> · /pr merge ${escapeHtml(full)} ${p.number}`
+      );
+    });
+  }
+  if (sub === "comment" && full && a && rest.length) {
+    return withProvider(ctx, "github", "prs.comment", async (conn) => {
+      const c = await gh.commentPR(conn, full, Number(a), rest.join(" "));
+      return `💬 Commented on PR #${a}${c.url ? ` — <a href="${c.url}">view</a>` : ""}`;
+    });
+  }
+  if ((sub === "close" || sub === "reopen") && full && a) {
+    return withProvider(ctx, "github", `prs.${sub}`, async (conn) => {
+      await gh.setPRState(conn, full, Number(a), sub === "close" ? "closed" : "open");
+      return sub === "close" ? `✅ PR #${a} closed.` : `✅ PR #${a} reopened.`;
     });
   }
   if (sub === "merge" && full && a) {
@@ -161,7 +186,11 @@ export async function cmdPr(ctx: Context, args: string[]) {
       }
     );
   }
-  return ctx.reply("Usage:\n/pr create owner/name <head> <base> [title]\n/pr merge owner/name <number>");
+  return ctx.reply(
+    "Usage:\n" +
+      "/pr view owner/name <n>\n/pr create owner/name <head> <base> [title]\n" +
+      "/pr comment owner/name <n> <text>\n/pr merge owner/name <n>\n/pr close|reopen owner/name <n>"
+  );
 }
 
 export async function cmdIssues(ctx: Context, args: string[]) {
@@ -184,13 +213,44 @@ export async function cmdIssue(ctx: Context, args: string[]) {
       return `✅ Issue #${i.number}: <a href="${i.url}">${escapeHtml(i.title)}</a>`;
     });
   }
-  if (sub === "close" && full && a) {
-    return withProvider(ctx, "github", "issues.close", async (conn) => {
-      await gh.closeIssue(conn, full, Number(a));
-      return `✅ Issue #${a} closed.`;
+  if (sub === "view" && full && a) {
+    return withProvider(ctx, "github", "issues.get", async (conn) => {
+      const i = await gh.getIssue(conn, full, Number(a));
+      return (
+        `🐞 <b>Issue #${i.number}</b> [${escapeHtml(i.state)}]\n` +
+        `<a href="${i.url}">${escapeHtml(i.title)}</a>\n\n` +
+        `${i.body ? `${escapeHtml(i.body)}\n\n` : ""}` +
+        `${i.labels.length ? `Labels: ${i.labels.map(escapeHtml).join(", ")}\n` : ""}` +
+        `${i.assignees.length ? `Assignees: ${i.assignees.map((u) => `@${escapeHtml(u)}`).join(", ")}\n` : ""}` +
+        `by @${escapeHtml(i.author)}\n\n` +
+        `/issue comment ${escapeHtml(full)} ${i.number} <text> · /issue close ${escapeHtml(full)} ${i.number}`
+      );
     });
   }
-  return ctx.reply('Usage:\n/issue open owner/name <title…>\n/issue close owner/name <number>');
+  if (sub === "comment" && full && a && rest.length) {
+    return withProvider(ctx, "github", "issues.comment", async (conn) => {
+      const c = await gh.commentIssue(conn, full, Number(a), rest.join(" "));
+      return `💬 Commented on issue #${a}${c.url ? ` — <a href="${c.url}">view</a>` : ""}`;
+    });
+  }
+  if (sub === "label" && full && a && rest.length) {
+    return withProvider(ctx, "github", "issues.label", async (conn) => {
+      await gh.labelIssue(conn, full, Number(a), rest);
+      return `🏷 Labeled issue #${a}: ${rest.map(escapeHtml).join(", ")}`;
+    });
+  }
+  if ((sub === "close" || sub === "reopen") && full && a) {
+    return withProvider(ctx, "github", `issues.${sub}`, async (conn) => {
+      await gh.setIssueState(conn, full, Number(a), sub === "close" ? "closed" : "open");
+      return sub === "close" ? `✅ Issue #${a} closed.` : `✅ Issue #${a} reopened.`;
+    });
+  }
+  return ctx.reply(
+    "Usage:\n" +
+      "/issue view owner/name <n>\n/issue open owner/name <title…>\n" +
+      "/issue comment owner/name <n> <text>\n/issue label owner/name <n> <label…>\n" +
+      "/issue close|reopen owner/name <n>"
+  );
 }
 
 export async function cmdReleases(ctx: Context, args: string[]) {
@@ -215,14 +275,27 @@ export async function cmdRelease(ctx: Context, args: string[]) {
 }
 
 export async function cmdRuns(ctx: Context, args: string[]) {
-  const [full] = args;
-  if (!full) return ctx.reply("Usage: /runs owner/name");
+  const [sub, full, id] = args;
+  if (sub === "cancel" && full && id) {
+    return withProvider(ctx, "github", "runs.cancel", async (conn) => {
+      await gh.cancelRun(conn, full, Number(id));
+      return `🚫 Run ${id} is being cancelled.`;
+    });
+  }
+  if (sub === "rerun" && full && id) {
+    return withProvider(ctx, "github", "runs.rerun", async (conn) => {
+      await gh.rerunRun(conn, full, Number(id));
+      return `🔁 Run ${id} re-queued. Check /runs ${escapeHtml(full)} shortly.`;
+    });
+  }
+  const repo = sub && !id ? sub : full;
+  if (!repo) return ctx.reply("Usage:\n/runs owner/name\n/runs cancel owner/name <run-id>\n/runs rerun owner/name <run-id>");
   await withProvider(ctx, "github", "runs.list", async (conn) => {
-    const runs = await gh.listRuns(conn, full);
+    const runs = await gh.listRuns(conn, repo);
     if (!runs.length) return "🈳 No workflow runs.";
     const icon = (c?: string | null) => (c === "success" ? "✅" : c === "failure" ? "❌" : c === "cancelled" ? "🚫" : "🔄");
-    return `⚙️ <b>Workflow runs</b> — ${escapeHtml(full)}\n\n${runs
-      .map((r: { conclusion?: string | null; status?: string; url: string; name: string; branch?: string | null; createdAt: string }) => `${icon(r.conclusion ?? r.status)} <a href="${r.url}">${escapeHtml(r.name)}</a> — ${escapeHtml(r.branch ?? "")} <i>${fmtAgo(r.createdAt)}</i>`)
+    return `⚙️ <b>Workflow runs</b> — ${escapeHtml(repo)}\n\n${runs
+      .map((r: { conclusion?: string | null; status?: string; url: string; name: string; branch?: string | null; createdAt: string; id?: number }) => `${icon(r.conclusion ?? r.status)} <a href="${r.url}">${escapeHtml(r.name)}</a> — ${escapeHtml(r.branch ?? "")} <i>${fmtAgo(r.createdAt)}</i> <code>${r.id ?? ""}</code>`)
       .join("\n")}`;
   });
 }
@@ -256,6 +329,143 @@ export async function cmdCollaborators(ctx: Context, args: string[]) {
   });
 }
 
+// ── Website-parity commands ────────────────────────────────────────
+
+export async function cmdSearch(ctx: Context, args: string[]) {
+  const q = args.join(" ").trim();
+  if (!q) return ctx.reply('Usage: /search <query>\nExample: /search react dashboard\nOr say "search for login bug".');
+  await withProvider(ctx, "github", "search", async (conn) => {
+    const [repos, issues] = await Promise.all([
+      gh.searchRepos(conn, q, 5).catch(() => []),
+      gh.searchIssues(conn, q, 5).catch(() => []),
+    ]);
+    const repoLines = repos.map(
+      (r: { fullName: string; url: string; stars: number; description?: string }) =>
+        `⭐ ${r.stars} <a href="${r.url}">${escapeHtml(r.fullName)}</a>${r.description ? ` — ${escapeHtml(r.description.slice(0, 40))}` : ""}`
+    );
+    const issueLines = issues.map(
+      (i: { number: number; title: string; url: string; state: string; repo: string; isPR: boolean }) =>
+        `${i.isPR ? "🔀" : "🐞"} <a href="${i.url}">${escapeHtml(i.repo)}#${i.number}</a> ${escapeHtml(i.title.slice(0, 45))} [${escapeHtml(i.state)}]`
+    );
+    if (!repoLines.length && !issueLines.length) return `🔍 Nothing found for "${escapeHtml(q)}".`;
+    return `🔍 <b>Results for "${escapeHtml(q)}"</b>\n\n${repoLines.length ? `Repositories:\n${repoLines.join("\n")}\n` : ""}${issueLines.length ? `\nIssues & PRs:\n${issueLines.join("\n")}` : ""}`;
+  });
+}
+
+export async function cmdStar(ctx: Context, args: string[]) {
+  const [full] = args;
+  if (!full) return ctx.reply("Usage: /star owner/name");
+  await withProvider(ctx, "github", "repos.star", async (conn) => {
+    await gh.starRepo(conn, full);
+    return `⭐ Starred <b>${escapeHtml(full)}</b>.`;
+  });
+}
+
+export async function cmdUnstar(ctx: Context, args: string[]) {
+  const [full] = args;
+  if (!full) return ctx.reply("Usage: /unstar owner/name");
+  await withProvider(ctx, "github", "repos.unstar", async (conn) => {
+    await gh.unstarRepo(conn, full);
+    return `💫 Unstarred <b>${escapeHtml(full)}</b>.`;
+  });
+}
+
+export async function cmdFork(ctx: Context, args: string[]) {
+  const [full] = args;
+  if (!full) return ctx.reply("Usage: /fork owner/name");
+  await withProvider(ctx, "github", "repos.fork", async (conn) => {
+    const f = await gh.forkRepo(conn, full);
+    return `🍴 Forked → <b>${escapeHtml(f.fullName ?? full)}</b>${f.url ? ` — <a href="${f.url}">view</a>` : ""}`;
+  });
+}
+
+export async function cmdCommits(ctx: Context, args: string[]) {
+  const [full, ref] = args;
+  if (!full) return ctx.reply("Usage: /commits owner/name [branch]");
+  await withProvider(ctx, "github", "commits.list", async (conn) => {
+    const commits = await gh.listCommits(conn, full, ref);
+    if (!commits.length) return "🈳 No commits found.";
+    return (
+      `🧾 <b>Recent commits</b> — ${escapeHtml(full)}${ref ? ` (${escapeHtml(ref)})` : ""}\n\n` +
+      commits
+        .map(
+          (c: { sha: string; message: string; author: string; date?: string; url: string }) =>
+            `<code>${escapeHtml(c.sha)}</code> <a href="${c.url}">${escapeHtml(c.message.slice(0, 55))}</a>\n   ${escapeHtml(c.author)} <i>${fmtAgo(c.date)}</i>`
+        )
+        .join("\n") +
+      `\n\n/commit-info ${escapeHtml(full)} <sha> for the diff summary.`
+    );
+  });
+}
+
+export async function cmdCommitInfo(ctx: Context, args: string[]) {
+  const [full, sha] = args;
+  if (!full || !sha) return ctx.reply("Usage: /commit-info owner/name <sha>");
+  await withProvider(ctx, "github", "commits.get", async (conn) => {
+    const c = await gh.getCommit(conn, full, sha);
+    return (
+      `🧾 <b>Commit ${escapeHtml(c.sha)}</b>\n` +
+      `<a href="${c.url}">${escapeHtml(c.message.split("\n")[0].slice(0, 70))}</a>\n` +
+      `${escapeHtml(c.author)} <i>${fmtAgo(c.date)}</i> · +${c.stats.additions} −${c.stats.deletions}\n\n` +
+      c.files
+        .map(
+          (f: { name: string; additions: number; deletions: number; status: string }) =>
+            `<code>${escapeHtml(f.status[0] ?? "M")}</code> ${escapeHtml(f.name)} <i>+${f.additions} −${f.deletions}</i>`
+        )
+        .join("\n")
+    );
+  });
+}
+
+export async function cmdRepoEdit(ctx: Context, args: string[]) {
+  const [full, what, ...rest] = args;
+  if (!full || !what) {
+    return ctx.reply(
+      "Usage:\n/repo-edit owner/name desc <new description>\n/repo-edit owner/name public|private"
+    );
+  }
+  if (what === "desc") {
+    return withProvider(ctx, "github", "repos.edit", async (conn) => {
+      const r = await gh.updateRepo(conn, full, { description: rest.join(" ") });
+      return `✅ Description updated for <b>${escapeHtml(r.fullName ?? full)}</b>.`;
+    });
+  }
+  if (what === "public" || what === "private") {
+    const key = `vis:${full.replace(/\W/g, "").slice(0, 16)}:${what}`;
+    return askConfirm(
+      ctx,
+      key,
+      `Make <b>${escapeHtml(full)}</b> ${what === "public" ? "PUBLIC — anyone on the internet can see it" : "private"}?`,
+      `⚠️ Yes, make it ${what}`,
+      async () => {
+        await withProvider(ctx, "github", "repos.edit", async (conn) => {
+          await gh.updateRepo(conn, full, { private: what === "private" });
+          return `✅ <b>${escapeHtml(full)}</b> is now ${what}.`;
+        });
+      }
+    );
+  }
+  return ctx.reply("Usage:\n/repo-edit owner/name desc <new description>\n/repo-edit owner/name public|private");
+}
+
+export async function cmdRepoDelete(ctx: Context, args: string[]) {
+  const [full] = args;
+  if (!full) return ctx.reply("Usage: /repo-delete owner/name");
+  const key = `repodel:${full.replace(/\W/g, "").slice(0, 24)}`;
+  return askConfirm(
+    ctx,
+    key,
+    `🚨 PERMANENTLY delete <b>${escapeHtml(full)}</b>?\nThis cannot be undone.`,
+    "🗑 Yes, delete it forever",
+    async () => {
+      await withProvider(ctx, "github", "repos.delete", async (conn) => {
+        await gh.deleteRepo(conn, full);
+        return `🗑 <b>${escapeHtml(full)}</b> has been deleted.`;
+      });
+    }
+  );
+}
+
 export function register(bot: Telegraf) {
   bot.command("repos", (ctx) => cmdRepos(ctx, argsOf(ctx)));
   bot.action(/^repos:page:(\d+)$/, (ctx) => cmdRepos(ctx, [String(ctx.match?.[1] ?? "2")]));
@@ -276,6 +486,14 @@ export function register(bot: Telegraf) {
   bot.command("workflow", (ctx) => cmdWorkflow(ctx, argsOf(ctx)));
   bot.command("runs", (ctx) => cmdRuns(ctx, argsOf(ctx)));
   bot.command("collaborators", (ctx) => cmdCollaborators(ctx, argsOf(ctx)));
+  bot.command("search", (ctx) => cmdSearch(ctx, argsOf(ctx)));
+  bot.command("star", (ctx) => cmdStar(ctx, argsOf(ctx)));
+  bot.command("unstar", (ctx) => cmdUnstar(ctx, argsOf(ctx)));
+  bot.command("fork", (ctx) => cmdFork(ctx, argsOf(ctx)));
+  bot.command("commits", (ctx) => cmdCommits(ctx, argsOf(ctx)));
+  bot.command("commit-info", (ctx) => cmdCommitInfo(ctx, argsOf(ctx)));
+  bot.command("repo-edit", (ctx) => cmdRepoEdit(ctx, argsOf(ctx)));
+  bot.command("repo-delete", (ctx) => cmdRepoDelete(ctx, argsOf(ctx)));
 }
 
 export { argsOf };
