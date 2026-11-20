@@ -134,9 +134,6 @@ function RadarMock() {
       <div className="node n-d dim">
         <Icon name="server" />
       </div>
-      <div className="tip">
-        <span className="dot" /> my-app <span className="sub">· LIVE</span>
-      </div>
     </div>
   );
 }
@@ -148,9 +145,8 @@ export function Features() {
         <div className="sec-head reveal">
           <div className="kicker">The product, in your pocket</div>
           <h2>
-            Everything you do on the dashboard.
-            <br />
-            Done in a message.
+            Everything you do on the dashboard.{" "}
+            <span className="dim">Done in a message.</span>
           </h2>
           <p>
             No new tab. No context switch. Tell Tandem what you need — and watch
@@ -158,69 +154,151 @@ export function Features() {
           </p>
         </div>
 
-        <div className="grid">
-          <div className="card reveal">
-            <div className="card-vis">
+        <div className="bento">
+          <div className="cell c4 reveal">
+            <span className="num">01</span>
+            <div className="cell-vis">
               <ThreadMock />
+              <div className="break-chip" style={{ right: 26, bottom: -14 }}>
+                <Icon name="check" style={{ color: "#1A9E6B" }} /> Repository
+                created <span className="sub">· 1.2s</span>
+              </div>
             </div>
-            <div className="card-txt">
+            <div className="cell-txt">
               <h3>Write it like a message</h3>
               <p>
                 Ask like you&apos;d ask a teammate. Tandem turns plain English
-                into real GitHub and Vercel actions — and shows its work.
+                into real GitHub and Vercel actions — and shows its work, line by
+                line.
               </p>
             </div>
           </div>
 
-          <div className="card reveal">
-            <div className="card-vis">
-              <ToolsMock />
-            </div>
-            <div className="card-txt">
-              <h3>Works with what you use</h3>
-              <p>
-                GitHub and Vercel are connected today — one-tap login, every
-                action covered. Cloudflare and Render land next.
-              </p>
-            </div>
-          </div>
-
-          <div className="card reveal">
-            <div className="card-vis">
+          <div className="cell c3 reveal" style={{ gridColumn: "span 2" }}>
+            <span className="num">02</span>
+            <div className="cell-vis">
               <ConfirmMock />
             </div>
-            <div className="card-txt">
-              <h3>Every action gets confirmed</h3>
+            <div className="cell-txt">
+              <h3>Safe by default</h3>
               <p>
-                Destructive moves always stop at a Yes/No button — even when you
-                asked in plain English. Nobody deletes a repo by typo.
+                Destructive moves always stop at a button — even in plain
+                English. Nobody deletes a repo by typo.
               </p>
             </div>
           </div>
 
-          <div className="card wide reveal">
-            <div className="card-vis">
+          <div className="cell c3 reveal">
+            <span className="num">03</span>
+            <div className="cell-vis">
               <DigestMock />
+              <div className="break-chip" style={{ left: 22, top: -13 }}>
+                <Icon name="sun" style={{ color: "#F5B93B" }} /> 08:00{" "}
+                <span className="sub">· delivered</span>
+              </div>
             </div>
-            <div className="card-txt">
+            <div className="cell-txt">
               <h3>The morning brief starts with your repos</h3>
               <p>
-                What shipped, what merged, what needs you — one digest in
-                Telegram before your first coffee, with problems first.
+                What shipped, what merged, what needs you — one digest before
+                your first coffee, problems first.
               </p>
             </div>
           </div>
 
-          <div className="card wide reveal" id="roadmap">
-            <div className="card-vis">
+          <div className="cell c3 reveal" id="roadmap">
+            <span className="num">04</span>
+            <div className="cell-vis">
               <RadarMock />
+              <div className="break-chip tip" style={{ right: -10, top: 52 }}>
+                <span
+                  style={{
+                    width: 6,
+                    height: 6,
+                    borderRadius: 99,
+                    background: "#22C55E",
+                  }}
+                />{" "}
+                my-app <span className="sub">· LIVE</span>
+              </div>
             </div>
-            <div className="card-txt">
+            <div className="cell-txt">
               <h3>Every deploy shows its status</h3>
               <p>
-                Builds, live URLs, rollbacks and promotions — tracked in the
-                same chat, visible at a glance. Cloudflare and Render join the
-                map soon.
+                Builds, live URLs, rollbacks, promotions — tracked in the same
+                chat. Cloudflare and Render join the map soon.
+              </p>
+            </div>
+          </div>
+
+          <div className="cell cell-dark reveal">
+            <span className="num">05</span>
+            <div className="cell-vis">
+              <ToolsMock />
+            </div>
+            <div className="cell-txt">
+              <h3>Works with what you use</h3>
+              <p>
+                GitHub and Vercel, one-tap login, every action covered.
+              </p>
+            </div>
+          </div>
+
+          <div className="cell cell-dark reveal">
+            <div className="cell-vis" style={{ minHeight: 200 }}>
+              <div className="stat-stack">
+                <div className="stat-line">
+                  <span className="n">1</span>
+                  <span className="l">
+                    chat replaces the dashboard tab you keep open all day
+                  </span>
+                </div>
+                <div className="stat-line">
+                  <span className="n">2</span>
+                  <span className="l">
+                    platforms woven in today — Cloudflare &amp; Render next
+                  </span>
+                </div>
+                <div className="stat-line">
+                  <span className="n">0</span>
+                  <span className="l">
+                    dashboards to learn. If you can type, you can ship
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="cell cell-dark reveal">
+            <span className="num">06</span>
+            <div className="cell-vis" style={{ minHeight: 200 }}>
+              <div
+                style={{
+                  display: "flex",
+                  gap: 12,
+                  flexWrap: "wrap",
+                  justifyContent: "center",
+                }}
+              >
+                <span className="break-chip" style={{ position: "static" }}>
+                  <Icon name="cloud" style={{ color: "#60A5FA" }} /> Cloudflare{" "}
+                  <span className="sub">· soon</span>
+                </span>
+                <span className="break-chip" style={{ position: "static" }}>
+                  <Icon name="server" style={{ color: "#34D399" }} /> Render{" "}
+                  <span className="sub">· soon</span>
+                </span>
+                <span className="break-chip" style={{ position: "static" }}>
+                  <Icon name="radar" style={{ color: "#A78BFA" }} /> Monitoring{" "}
+                  <span className="sub">· soon</span>
+                </span>
+              </div>
+            </div>
+            <div className="cell-txt">
+              <h3>Growing with you</h3>
+              <p>
+                Every update ships straight into the same chat — nothing new to
+                learn.
               </p>
             </div>
           </div>

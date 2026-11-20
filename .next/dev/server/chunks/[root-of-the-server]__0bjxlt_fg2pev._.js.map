@@ -1,0 +1,6 @@
+{
+  "version": 3,
+  "sources": [],
+  "sections": [
+    {"offset": {"line": 16, "column": 0}, "map": {"version":3,"sources":["file:///home/user/Tandem/pages/api/index.js"],"sourcesContent":["/**\n * Tandem health check — GET /\n * Visit your Vercel URL in a browser to confirm the deployment is alive.\n */\nexport default function handler(req, res) {\n  res.status(200).json({\n    ok: true,\n    service: \"Tandem\",\n    tagline: \"Your entire stack. One conversation.\",\n    status: \"alive\",\n    docs: \"Open Telegram and send /start to your bot.\",\n  });\n}\n"],"names":["handler","req","res","status","json","ok","service","tagline","docs"],"mappings":"AAAA;;;CAGC;;;;AACc,SAASA,QAAQC,GAAG,EAAEC,GAAG;IACtCA,IAAIC,MAAM,CAAC,KAAKC,IAAI,CAAC;QACnBC,IAAI;QACJC,SAAS;QACTC,SAAS;QACTJ,QAAQ;QACRK,MAAM;IACR;AACF"}}]
+}
