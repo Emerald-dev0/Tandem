@@ -1,24 +1,490 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Tandem — Your entire stack. One conversation.</title>
-  <style>
-    body { font-family: system-ui, -apple-system, sans-serif; max-width: 640px; margin: 80px auto; padding: 0 24px; text-align: center; color: #1a1a2e; }
-    h1 { font-size: 2.5rem; margin-bottom: 0.5rem; }
-    p { color: #555; line-height: 1.6; }
-    .badge { display: inline-block; background: #e8f5e9; color: #2e7d32; padding: 6px 14px; border-radius: 999px; font-weight: 600; font-size: 0.9rem; margin-top: 16px; }
-    code { background: #f4f4f5; padding: 2px 8px; border-radius: 6px; }
-  </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Tandem — Your dev stack. One chat.</title>
+<meta name="description" content="Tandem is your development ecosystem, connected in one place. Create repositories, ship deploys and manage infrastructure — directly from Telegram.">
+<meta property="og:title" content="Tandem — Your dev stack. One chat.">
+<meta property="og:description" content="Create repos, ship deploys and manage infrastructure — directly from Telegram.">
+<meta name="theme-color" content="#0A47A8">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 48'%3E%3Ccircle cx='24' cy='24' r='22' fill='%232AABEE'/%3E%3Cpath d='M11 24.5 35 14l-4 21-8-6.5-4.5 4.5.8-7L34 15.8 16.6 27.2z' fill='%23fff'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --blue-900:#041E52;
+    --blue-800:#062A66;
+    --blue-700:#0A47A8;
+    --blue-600:#0D5FD0;
+    --blue-500:#1B77E8;
+    --tg:#2AABEE;
+    --tg-dark:#229ED9;
+    --ink:#FFFFFF;
+    --ink-70:rgba(255,255,255,.72);
+    --ink-50:rgba(255,255,255,.52);
+    --card:rgba(255,255,255,.08);
+    --card-brd:rgba(255,255,255,.16);
+    --radius:24px;
+    --shadow:0 24px 60px rgba(3,18,48,.45);
+    --font:'Inter',system-ui,sans-serif;
+    --display:'Space Grotesk','Inter',sans-serif;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{
+    font-family:var(--font);
+    color:var(--ink);
+    background:
+      radial-gradient(1100px 600px at 82% -12%, rgba(42,171,238,.28), transparent 60%),
+      radial-gradient(900px 520px at -12% 18%, rgba(42,171,238,.18), transparent 55%),
+      radial-gradient(1200px 800px at 50% 118%, rgba(27,119,232,.25), transparent 60%),
+      linear-gradient(180deg, var(--blue-800) 0%, var(--blue-700) 42%, var(--blue-900) 100%);
+    background-attachment:fixed;
+    overflow-x:hidden;
+    line-height:1.55;
+    -webkit-font-smoothing:antialiased;
+  }
+  /* glow dots */
+  body::before{
+    content:"";position:fixed;inset:0;pointer-events:none;z-index:0;
+    background-image:
+      radial-gradient(2px 2px at 12% 22%, rgba(255,255,255,.35), transparent 60%),
+      radial-gradient(2px 2px at 78% 12%, rgba(255,255,255,.30), transparent 60%),
+      radial-gradient(2.5px 2.5px at 64% 42%, rgba(120,200,255,.35), transparent 60%),
+      radial-gradient(2px 2px at 22% 68%, rgba(255,255,255,.22), transparent 60%),
+      radial-gradient(2px 2px at 90% 74%, rgba(120,200,255,.28), transparent 60%),
+      radial-gradient(2px 2px at 42% 88%, rgba(255,255,255,.18), transparent 60%);
+  }
+  a{color:inherit;text-decoration:none}
+  img,svg{display:block}
+  .wrap{width:min(1160px,92vw);margin:0 auto;position:relative;z-index:1}
+
+  /* ───────── nav ───────── */
+  nav{position:sticky;top:0;z-index:50;backdrop-filter:blur(14px);background:rgba(6,42,102,.55);border-bottom:1px solid rgba(255,255,255,.08)}
+  .nav-in{display:flex;align-items:center;justify-content:space-between;padding:14px 0}
+  .logo{display:flex;align-items:center;gap:10px;font-family:var(--display);font-weight:700;font-size:20px;letter-spacing:.2px}
+  .logo .mark{width:34px;height:34px;border-radius:10px;background:linear-gradient(135deg,var(--tg),var(--blue-600));display:grid;place-items:center;box-shadow:0 6px 18px rgba(42,171,238,.45)}
+  .nav-links{display:flex;gap:28px;font-size:14.5px;font-weight:500;color:var(--ink-70)}
+  .nav-links a:hover{color:#fff}
+  .btn{display:inline-flex;align-items:center;gap:9px;border-radius:14px;font-weight:600;font-size:15px;padding:12px 22px;transition:transform .18s ease, box-shadow .18s ease;cursor:pointer;border:0;white-space:nowrap}
+  .btn-primary{background:linear-gradient(135deg,var(--tg),var(--tg-dark));color:#fff;box-shadow:0 10px 28px rgba(42,171,238,.42)}
+  .btn-primary:hover{transform:translateY(-2px);box-shadow:0 16px 36px rgba(42,171,238,.55)}
+  .btn-ghost{background:rgba(255,255,255,.08);color:#fff;border:1px solid var(--card-brd)}
+  .btn-ghost:hover{background:rgba(255,255,255,.14);transform:translateY(-2px)}
+  .btn-lg{padding:16px 30px;font-size:17px;border-radius:16px}
+
+  /* ───────── hero ───────── */
+  .hero{padding:88px 0 40px;display:grid;grid-template-columns:1.05fr .95fr;gap:48px;align-items:center}
+  .badge{display:inline-flex;align-items:center;gap:8px;font-size:13px;font-weight:600;letter-spacing:.3px;color:#C9E8FF;background:rgba(42,171,238,.16);border:1px solid rgba(42,171,238,.38);border-radius:999px;padding:7px 14px;margin-bottom:22px}
+  .badge .dot{width:7px;height:7px;border-radius:50%;background:#3BE28A;box-shadow:0 0 10px #3BE28A}
+  h1{font-family:var(--display);font-size:clamp(42px,5.4vw,66px);line-height:1.03;letter-spacing:-1.2px;font-weight:700}
+  h1 .grad{background:linear-gradient(120deg,#8FD8FF 5%,var(--tg) 55%,#66B7FF 95%);-webkit-background-clip:text;background-clip:text;color:transparent}
+  .sub{margin:22px 0 32px;font-size:19px;color:var(--ink-70);max-width:520px}
+  .hero-ctas{display:flex;gap:14px;flex-wrap:wrap}
+  .hero-note{margin-top:18px;font-size:13.5px;color:var(--ink-50)}
+
+  /* phone mockup */
+  .hero-visual{position:relative;display:flex;justify-content:center}
+  .phone{
+    width:330px;border-radius:42px;background:#0E1621;border:1px solid rgba(255,255,255,.14);
+    box-shadow:var(--shadow), 0 0 90px rgba(42,171,238,.30);overflow:hidden;position:relative;z-index:2;
+    animation:float 7s ease-in-out infinite;
+  }
+  @keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-14px)}}
+  .tg-head{display:flex;align-items:center;gap:11px;padding:14px 16px;background:#17212B;border-bottom:1px solid rgba(255,255,255,.06)}
+  .tg-avatar{width:38px;height:38px;border-radius:50%;background:linear-gradient(135deg,var(--tg),var(--blue-600));display:grid;place-items:center;font-size:17px}
+  .tg-name{font-size:15px;font-weight:700;display:flex;align-items:center;gap:6px}
+  .tg-name .bot-tag{font-size:9.5px;font-weight:700;letter-spacing:.6px;background:rgba(42,171,238,.25);color:#7CC7F5;border-radius:5px;padding:2px 6px}
+  .tg-status{font-size:11.5px;color:var(--ink-50)}
+  .tg-chat{padding:16px 13px 20px;display:flex;flex-direction:column;gap:10px;background:
+    radial-gradient(240px 140px at 85% 0%, rgba(42,171,238,.10), transparent 60%), #0E1621}
+  .bub{max-width:82%;padding:9px 12.5px;border-radius:14px;font-size:12.8px;line-height:1.5}
+  .bub.user{align-self:flex-end;background:linear-gradient(135deg,#2E7FD6,#276FC2);color:#fff;border-bottom-right-radius:5px}
+  .bub.bot{align-self:flex-start;background:#1D2B3A;color:#E9F2FB;border-bottom-left-radius:5px}
+  .bub .muted{color:rgba(233,242,251,.55);font-size:11px}
+  .mini-btn{margin-top:8px;display:inline-block;font-size:11px;font-weight:600;color:#9FD8FF;background:rgba(42,171,238,.16);border:1px solid rgba(42,171,238,.35);border-radius:8px;padding:5px 10px}
+  .repo-row{display:flex;justify-content:space-between;gap:8px;font-size:11.6px;padding:4px 0;border-bottom:1px solid rgba(255,255,255,.06)}
+  .repo-row:last-of-type{border-bottom:0}
+  .pill-float{
+    position:absolute;z-index:3;background:rgba(13,32,64,.88);border:1px solid var(--card-brd);
+    border-radius:14px;padding:10px 14px;font-size:12.5px;font-weight:600;display:flex;align-items:center;gap:8px;
+    box-shadow:0 14px 34px rgba(3,18,48,.5);backdrop-filter:blur(10px);animation:float 6s ease-in-out infinite;
+  }
+  .pill-float.p1{top:9%;left:-4%;animation-delay:.8s}
+  .pill-float.p2{bottom:12%;right:-6%;animation-delay:1.6s}
+
+  /* ───────── strip ───────── */
+  .strip{display:flex;align-items:center;justify-content:center;gap:14px 30px;flex-wrap:wrap;padding:26px 0 10px;color:var(--ink-50);font-size:13px;font-weight:600;letter-spacing:1.4px;text-transform:uppercase}
+  .chip{display:inline-flex;align-items:center;gap:8px;font-size:15px;letter-spacing:0;text-transform:none;color:var(--ink-70);background:var(--card);border:1px solid var(--card-brd);border-radius:12px;padding:9px 16px;font-weight:600}
+  .chip svg{width:18px;height:18px}
+  .chip .soon{font-size:10px;letter-spacing:.6px;font-weight:700;color:#0E2A5C;background:#B9D9FF;border-radius:6px;padding:2px 7px;text-transform:uppercase}
+
+  /* ───────── sections ───────── */
+  section{padding:84px 0 24px}
+  .sec-head{text-align:center;max-width:660px;margin:0 auto 52px}
+  .kicker{font-size:13px;font-weight:700;letter-spacing:2.2px;text-transform:uppercase;color:#7CC7F5;margin-bottom:12px}
+  h2{font-family:var(--display);font-size:clamp(30px,3.6vw,44px);letter-spacing:-.8px;line-height:1.1}
+  .sec-head p{margin-top:14px;font-size:17px;color:var(--ink-70)}
+
+  /* feature grid */
+  .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:22px}
+  .card{
+    background:linear-gradient(180deg, rgba(255,255,255,.10), rgba(255,255,255,.05));
+    border:1px solid var(--card-brd);border-radius:var(--radius);overflow:hidden;
+    display:flex;flex-direction:column;transition:transform .22s ease, box-shadow .22s ease, border-color .22s;
+  }
+  .card:hover{transform:translateY(-6px);box-shadow:0 26px 60px rgba(3,18,48,.5);border-color:rgba(120,200,255,.45)}
+  .card-vis{height:212px;position:relative;display:flex;align-items:center;justify-content:center;padding:18px;
+    background:radial-gradient(300px 160px at 50% 0%, rgba(42,171,238,.22), transparent 65%)}
+  .card-txt{padding:20px 22px 24px}
+  .card-txt h3{font-family:var(--display);font-size:19.5px;letter-spacing:-.2px;margin-bottom:7px}
+  .card-txt p{font-size:14.2px;color:var(--ink-70)}
+
+  /* mockup atoms */
+  .mock{background:#12203A;border:1px solid rgba(255,255,255,.12);border-radius:14px;box-shadow:0 14px 30px rgba(3,18,48,.42)}
+  .mock.bub-white{background:#fff;color:#12203A;border:0}
+  .stack{display:flex;flex-direction:column;gap:8px;width:100%;max-width:270px}
+  .t-bub{padding:8px 11px;border-radius:11px;font-size:11.8px;line-height:1.45;max-width:88%}
+  .t-bub.me{align-self:flex-end;background:linear-gradient(135deg,#2E7FD6,#276FC2);color:#fff;border-bottom-right-radius:4px}
+  .t-bub.it{align-self:flex-start;background:#1D2B3A;color:#E9F2FB;border-bottom-left-radius:4px}
+  .t-bub.white{background:#fff;color:#12203A}
+  .rowline{display:flex;justify-content:space-between;font-size:10.8px;padding:3.5px 0;border-bottom:1px solid rgba(255,255,255,.07)}
+  .rowline:last-child{border-bottom:0}
+  .fake-btn{font-size:10.6px;font-weight:700;border-radius:8px;padding:5px 9px;display:inline-block}
+  .fb-blue{background:rgba(42,171,238,.2);color:#8FD8FF;border:1px solid rgba(42,171,238,.4)}
+  .fb-red{background:rgba(255,93,93,.18);color:#FF9D9D;border:1px solid rgba(255,93,93,.4)}
+  .fb-grey{background:rgba(255,255,255,.1);color:var(--ink-70);border:1px solid rgba(255,255,255,.16)}
+  .tool-row{display:flex;gap:8px;flex-wrap:wrap;justify-content:center}
+  .tool{width:46px;height:46px;border-radius:13px;display:grid;place-items:center;background:rgba(255,255,255,.10);border:1px solid rgba(255,255,255,.16)}
+  .tool svg{width:22px;height:22px}
+  .tool.dim{opacity:.42}
+  .digest{width:100%;max-width:264px;padding:13px 15px}
+  .digest .d-head{display:flex;justify-content:space-between;font-size:11px;color:var(--ink-50);margin-bottom:9px}
+  .digest .d-title{font-size:13px;font-weight:800;margin-bottom:8px}
+  .digest .d-line{display:flex;gap:8px;font-size:11.2px;padding:4px 0;border-bottom:1px dashed rgba(255,255,255,.10)}
+  .digest .d-line:last-child{border-bottom:0}
+  .orbit{position:relative;width:220px;height:170px}
+  .orbit .ring{position:absolute;inset:auto;left:50%;top:50%;transform:translate(-50%,-50%);border:1px dashed rgba(255,255,255,.22);border-radius:50%}
+  .orbit .r1{width:110px;height:110px}
+  .orbit .r2{width:180px;height:180px}
+  .orbit .core{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:46px;height:46px;border-radius:14px;background:linear-gradient(135deg,var(--tg),var(--blue-600));display:grid;place-items:center;box-shadow:0 0 34px rgba(42,171,238,.6);font-size:19px}
+  .orbit .node{position:absolute;width:38px;height:38px;border-radius:50%;background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.22);display:grid;place-items:center;font-size:15px}
+  .orbit .n1{top:6px;left:22px}.orbit .n2{top:20px;right:16px}.orbit .n3{bottom:8px;left:36px;opacity:.45}.orbit .n4{bottom:16px;right:30px;opacity:.45}
+
+  /* steps */
+  .steps{display:grid;grid-template-columns:repeat(3,1fr);gap:22px}
+  .step{background:var(--card);border:1px solid var(--card-brd);border-radius:var(--radius);padding:28px 26px}
+  .step .num{width:40px;height:40px;border-radius:12px;background:rgba(42,171,238,.18);border:1px solid rgba(42,171,238,.4);color:#8FD8FF;font-family:var(--display);font-weight:700;display:grid;place-items:center;margin-bottom:16px}
+  .step h3{font-family:var(--display);font-size:19px;margin-bottom:8px}
+  .step p{font-size:14.5px;color:var(--ink-70)}
+
+  /* final cta */
+  .cta-panel{
+    margin:70px auto 40px;padding:64px 40px;text-align:center;border-radius:32px;
+    background:linear-gradient(160deg, rgba(42,171,238,.28), rgba(42,171,238,.10) 55%, rgba(255,255,255,.05));
+    border:1px solid rgba(120,200,255,.35);box-shadow:0 30px 80px rgba(3,18,48,.45);position:relative;overflow:hidden;
+  }
+  .cta-panel::after{content:"";position:absolute;inset:-40% -10% auto;height:240px;background:radial-gradient(420px 160px at 50% 0%, rgba(42,171,238,.35), transparent 70%)}
+  .cta-panel h2{position:relative;z-index:1}
+  .cta-panel p{position:relative;z-index:1;color:var(--ink-70);font-size:17px;margin:14px auto 30px;max-width:520px}
+
+  footer{border-top:1px solid rgba(255,255,255,.08);padding:30px 0 46px;color:var(--ink-50);font-size:13.5px}
+  .foot-in{display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap}
+  .foot-links{display:flex;gap:22px}
+  .foot-links a:hover{color:#fff}
+
+  /* reveal */
+  .reveal{opacity:0;transform:translateY(22px);transition:opacity .7s ease, transform .7s ease}
+  .reveal.on{opacity:1;transform:none}
+
+  @media (max-width:960px){
+    .hero{grid-template-columns:1fr;padding-top:56px}
+    .hero-visual{margin-top:8px}
+    .grid{grid-template-columns:1fr 1fr}
+    .steps{grid-template-columns:1fr}
+    .nav-links{display:none}
+  }
+  @media (max-width:640px){
+    .grid{grid-template-columns:1fr}
+    .pill-float{display:none}
+    .phone{width:min(330px,88vw)}
+    .sub{font-size:17px}
+  }
+</style>
 </head>
 <body>
-  <h1>🤖 Tandem</h1>
-  <p><strong>Your entire stack. One conversation.</strong></p>
-  <p>Tandem is a Telegram-native developer operations platform.<br />
-  Create repositories, deploy applications, and manage infrastructure —<br />
-  directly from Telegram.</p>
-  <p>Open Telegram and send <code>/start</code> to your Tandem bot to get started.</p>
-  <span class="badge">🟢 Bot service is alive</span>
+
+<nav>
+  <div class="wrap nav-in">
+    <a class="logo" href="#top">
+      <span class="mark">
+        <svg width="18" height="18" viewBox="0 0 48 48" fill="none"><path d="M11 24.5 35 14l-4 21-8-6.5-4.5 4.5.8-7L34 15.8 16.6 27.2z" fill="#fff"/></svg>
+      </span>
+      Tandem
+    </a>
+    <div class="nav-links">
+      <a href="#features">Features</a>
+      <a href="#how">How it works</a>
+      <a href="#roadmap">Roadmap</a>
+    </div>
+    <a class="btn btn-primary" href="https://t.me/tandem_devops_bot" target="_blank" rel="noopener">
+      <svg width="16" height="16" viewBox="0 0 48 48" fill="none"><path d="M11 24.5 35 14l-4 21-8-6.5-4.5 4.5.8-7L34 15.8 16.6 27.2z" fill="#fff"/></svg>
+      Open in Telegram
+    </a>
+  </div>
+</nav>
+
+<header class="wrap hero" id="top">
+  <div>
+    <div class="badge"><span class="dot"></span> LIVE ON TELEGRAM · v0.4</div>
+    <h1>Your dev stack.<br><span class="grad">One chat.</span></h1>
+    <p class="sub">Tandem is your development ecosystem, connected in one place. Create repositories, ship deployments and manage infrastructure — just by talking to it.</p>
+    <div class="hero-ctas">
+      <a class="btn btn-primary btn-lg" href="https://t.me/tandem_devops_bot" target="_blank" rel="noopener">
+        <svg width="18" height="18" viewBox="0 0 48 48" fill="none"><path d="M11 24.5 35 14l-4 21-8-6.5-4.5 4.5.8-7L34 15.8 16.6 27.2z" fill="#fff"/></svg>
+        Start on Telegram
+      </a>
+      <a class="btn btn-ghost btn-lg" href="#features">See how it works</a>
+    </div>
+    <p class="hero-note">Free to start · Your tokens, AES-256 encrypted · No card, no servers</p>
+  </div>
+
+  <div class="hero-visual">
+    <div class="pill-float p1">⭐ Starred <b style="margin-left:4px">octo/calder-api</b></div>
+    <div class="pill-float p2">🚀 Deploy live · <span style="color:#7CC7F5">my-app.vercel.app</span></div>
+    <div class="phone">
+      <div class="tg-head">
+        <div class="tg-avatar">
+          <svg width="19" height="19" viewBox="0 0 48 48" fill="none"><path d="M11 24.5 35 14l-4 21-8-6.5-4.5 4.5.8-7L34 15.8 16.6 27.2z" fill="#fff"/></svg>
+        </div>
+        <div>
+          <div class="tg-name">Tandem <span class="bot-tag">BOT</span></div>
+          <div class="tg-status">bot · replies instantly</div>
+        </div>
+      </div>
+      <div class="tg-chat">
+        <div class="bub user">list my repos</div>
+        <div class="bub bot">
+          <b>📂 Your repositories — page 1</b>
+          <div class="repo-row"><span>🔒 octo/calder-api</span><span class="muted">2h</span></div>
+          <div class="repo-row"><span>🌐 octo/portfolio</span><span class="muted">1d</span></div>
+          <div class="repo-row"><span>🔒 octo/billing-svc</span><span class="muted">3d</span></div>
+          <div class="mini-btn">➡️ Show more</div>
+        </div>
+        <div class="bub user">deploy my-app to vercel</div>
+        <div class="bub bot">
+          <b>🚀 Deployment started</b><br>
+          my-app.vercel.app<br>
+          <span class="muted">state: BUILDING → LIVE</span>
+          <div class="mini-btn">/deployment details</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</header>
+
+<div class="wrap strip reveal">
+  <span>Works with</span>
+  <span class="chip">
+    <svg viewBox="0 0 24 24" fill="#fff"><path d="M12 .5A11.5 11.5 0 0 0 .5 12c0 5.09 3.29 9.4 7.86 10.93.58.1.79-.25.79-.56v-2c-3.2.7-3.88-1.54-3.88-1.54-.53-1.35-1.29-1.7-1.29-1.7-1.06-.72.08-.7.08-.7 1.17.08 1.78 1.2 1.78 1.2 1.04 1.78 2.73 1.27 3.4.97.1-.75.4-1.27.73-1.56-2.55-.3-5.24-1.28-5.24-5.7 0-1.26.45-2.29 1.19-3.1-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.18 1.18a11 11 0 0 1 5.8 0c2.2-1.5 3.17-1.18 3.17-1.18.63 1.59.23 2.76.12 3.05.74.81 1.18 1.84 1.18 3.1 0 4.43-2.69 5.4-5.25 5.68.41.36.78 1.06.78 2.14v3.17c0 .31.21.67.8.56A11.5 11.5 0 0 0 23.5 12 11.5 11.5 0 0 0 12 .5z"/></svg>
+    GitHub
+  </span>
+  <span class="chip">
+    <svg viewBox="0 0 24 24" fill="#fff"><path d="M12 2 24 22H0z"/></svg>
+    Vercel
+  </span>
+  <span class="chip">
+    <svg viewBox="0 0 24 24" fill="#F38020"><path d="M16.5 16.4H22L17 4.6c-.3-.7-1-.7-1.3-.1l-2.3 4.5 2.8 5.3h-3.9l-2.4-4.6-2.6 4.6H3.4l4.7-8.3c.3-.5.9-.6 1.3-.2l2.4 4.5 4.3-7.7c.3-.6 1-.6 1.3 0l4.6 12.4z"/></svg>
+    Cloudflare <span class="soon">Soon</span>
+  </span>
+  <span class="chip">
+    <svg viewBox="0 0 24 24" fill="#46E3B7"><circle cx="12" cy="12" r="10"/></svg>
+    Render <span class="soon">Soon</span>
+  </span>
+</div>
+
+<section id="features">
+  <div class="wrap">
+    <div class="sec-head reveal">
+      <div class="kicker">The product, in your pocket</div>
+      <h2>Everything you do on the dashboard.<br>Done in a message.</h2>
+      <p>No new tab. No context switch. Just tell Tandem what you need — and watch it happen.</p>
+    </div>
+
+    <div class="grid">
+      <!-- 1 -->
+      <div class="card reveal">
+        <div class="card-vis">
+          <div class="stack">
+            <div class="t-bub me">create a private repo called calder-api</div>
+            <div class="t-bub it">⚡ <i>create a private repo called calder-api</i>…<br><br>✅ <b>Repository created</b><br>🔒 octo/calder-api</div>
+          </div>
+        </div>
+        <div class="card-txt">
+          <h3>Talk like a human</h3>
+          <p>Plain English in, real actions out. “Deploy my-app to vercel”, “list dns for example.com” — Tandem understands and executes.</p>
+        </div>
+      </div>
+
+      <!-- 2 -->
+      <div class="card reveal">
+        <div class="card-vis">
+          <div class="tool-row">
+            <div class="tool" title="GitHub">
+              <svg viewBox="0 0 24 24" fill="#fff"><path d="M12 .5A11.5 11.5 0 0 0 .5 12c0 5.09 3.29 9.4 7.86 10.93.58.1.79-.25.79-.56v-2c-3.2.7-3.88-1.54-3.88-1.54-.53-1.35-1.29-1.7-1.29-1.7-1.06-.72.08-.7.08-.7 1.17.08 1.78 1.2 1.78 1.2 1.04 1.78 2.73 1.27 3.4.97.1-.75.4-1.27.73-1.56-2.55-.3-5.24-1.28-5.24-5.7 0-1.26.45-2.29 1.19-3.1-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.18 1.18a11 11 0 0 1 5.8 0c2.2-1.5 3.17-1.18 3.17-1.18.63 1.59.23 2.76.12 3.05.74.81 1.18 1.84 1.18 3.1 0 4.43-2.69 5.4-5.25 5.68.41.36.78 1.06.78 2.14v3.17c0 .31.21.67.8.56A11.5 11.5 0 0 0 23.5 12 11.5 11.5 0 0 0 12 .5z"/></svg>
+            </div>
+            <div class="tool" title="Vercel">
+              <svg viewBox="0 0 24 24" fill="#fff"><path d="M12 2 24 22H0z"/></svg>
+            </div>
+            <div class="tool" title="Telegram">
+              <svg viewBox="0 0 48 48" fill="none"><path d="M11 24.5 35 14l-4 21-8-6.5-4.5 4.5.8-7L34 15.8 16.6 27.2z" fill="#2AABEE"/></svg>
+            </div>
+            <div class="tool dim" title="Cloudflare — soon">☁️</div>
+            <div class="tool dim" title="Render — soon">🟣</div>
+          </div>
+        </div>
+        <div class="card-txt">
+          <h3>Works with what you use</h3>
+          <p>GitHub and Vercel are deeply integrated today — one-tap login, every action, nothing pasted. Cloudflare and Render are on the way.</p>
+        </div>
+      </div>
+
+      <!-- 3 -->
+      <div class="card reveal">
+        <div class="card-vis">
+          <div class="stack">
+            <div class="t-bub it"><b>⚠️ Make octo/blog PUBLIC?</b><br>Anyone on the internet can see it.</div>
+            <div style="display:flex;gap:8px;align-self:flex-start">
+              <span class="fake-btn fb-red">⚠️ Yes, make it public</span>
+              <span class="fake-btn fb-grey">🚫 Cancel</span>
+            </div>
+          </div>
+        </div>
+        <div class="card-txt">
+          <h3>Safe by default</h3>
+          <p>Destructive actions always stop at a confirmation button — even when you ask in plain English. Nobody deletes a repo by typo.</p>
+        </div>
+      </div>
+
+      <!-- 4 -->
+      <div class="card reveal">
+        <div class="card-vis">
+          <div class="mock digest">
+            <div class="d-head"><span>☀️ Tandem daily digest</span><span>08:00</span></div>
+            <div class="d-title">Good morning 👋</div>
+            <div class="d-line"><span>📊</span><span>Activity (24h): <b>6 events</b></span></div>
+            <div class="d-line"><span>🚀</span><span>my-app deployed → <b>LIVE</b></span></div>
+            <div class="d-line"><span>🔀</span><span>PR #24 merged in calder-api</span></div>
+            <div class="d-line"><span>👀</span><span>Watches: calder-api, portfolio</span></div>
+          </div>
+        </div>
+        <div class="card-txt">
+          <h3>Your morning brief</h3>
+          <p>Wake up to the digest: what shipped, what moved, what needs you — sent to Telegram before your first coffee.</p>
+        </div>
+      </div>
+
+      <!-- 5 -->
+      <div class="card reveal">
+        <div class="card-vis">
+          <div class="stack">
+            <div class="t-bub me">deploy my-app to vercel</div>
+            <div class="t-bub it"><b>🚀 Deployment started</b><br>
+              <span style="color:#8FD8FF">my-app.vercel.app</span><br>
+              <span class="muted">BUILDING → READY</span>
+              <div class="mini-btn">⚡ Promote to production</div>
+            </div>
+          </div>
+        </div>
+        <div class="card-txt">
+          <h3>Deploys from your pocket</h3>
+          <p>Ship, inspect, roll back and promote — real deployments with live URLs, from anywhere you have Telegram.</p>
+        </div>
+      </div>
+
+      <!-- 6 -->
+      <div class="card reveal" id="roadmap">
+        <div class="card-vis">
+          <div class="orbit">
+            <div class="ring r1"></div>
+            <div class="ring r2"></div>
+            <div class="core">✈️</div>
+            <div class="node n1">🐙</div>
+            <div class="node n2">▲</div>
+            <div class="node n3">☁️</div>
+            <div class="node n4">🟣</div>
+          </div>
+        </div>
+        <div class="card-txt">
+          <h3>Growing with you</h3>
+          <p>Cloudflare DNS, Render services and more are landing next. Every update ships straight to the same chat.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="how">
+  <div class="wrap">
+    <div class="sec-head reveal">
+      <div class="kicker">How it works</div>
+      <h2>Three steps. Ninety seconds.</h2>
+    </div>
+    <div class="steps">
+      <div class="step reveal">
+        <div class="num">1</div>
+        <h3>Open the bot</h3>
+        <p>Tap “Start on Telegram”. Your account is created instantly — no forms, no password, no email.</p>
+      </div>
+      <div class="step reveal">
+        <div class="num">2</div>
+        <h3>Connect your tools</h3>
+        <p>One-tap “Log in with GitHub / Vercel”. Credentials are AES-256 encrypted and never shown back.</p>
+      </div>
+      <div class="step reveal">
+        <div class="num">3</div>
+        <h3>Just ask</h3>
+        <p>“Create a repo.” “Deploy it.” “What happened today?” Tandem does the rest — and shows its work.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="wrap reveal">
+  <div class="cta-panel">
+    <h2>Send it your first command.</h2>
+    <p>Connect your tools. Tell Tandem what you need. Get it done.</p>
+    <a class="btn btn-primary btn-lg" href="https://t.me/tandem_devops_bot" target="_blank" rel="noopener">
+      <svg width="18" height="18" viewBox="0 0 48 48" fill="none"><path d="M11 24.5 35 14l-4 21-8-6.5-4.5 4.5.8-7L34 15.8 16.6 27.2z" fill="#fff"/></svg>
+      Start on Telegram — it's free
+    </a>
+  </div>
+</div>
+
+<footer>
+  <div class="wrap foot-in">
+    <div class="logo" style="font-size:17px">
+      <span class="mark" style="width:28px;height:28px;border-radius:9px">
+        <svg width="14" height="14" viewBox="0 0 48 48" fill="none"><path d="M11 24.5 35 14l-4 21-8-6.5-4.5 4.5.8-7L34 15.8 16.6 27.2z" fill="#fff"/></svg>
+      </span>
+      Tandem
+    </div>
+    <div class="foot-links">
+      <a href="https://github.com/Emerald-dev0/Tandem" target="_blank" rel="noopener">GitHub</a>
+      <a href="https://github.com/Emerald-dev0/Tandem/blob/main/SECURITY.md" target="_blank" rel="noopener">Security</a>
+      <a href="https://t.me/tandem_devops_bot" target="_blank" rel="noopener">Telegram</a>
+    </div>
+    <div>© 2026 Tandem · Built for builders</div>
+  </div>
+</footer>
+
+<script>
+  const io = new IntersectionObserver((entries) => {
+    for (const e of entries) if (e.isIntersecting) { e.target.classList.add('on'); io.unobserve(e.target); }
+  }, { threshold: 0.12 });
+  document.querySelectorAll('.reveal').forEach((el) => io.observe(el));
+</script>
 </body>
 </html>
