@@ -9,7 +9,7 @@
 process.env.BOT_TOKEN = "123456:TEST-TOKEN";
 process.env.ENCRYPTION_KEY = "00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff";
 
-const { createBot } = await import("../api/_lib/bot.js");
+const { createBot } = await import("../dist/bot.js");
 const { Telegram } = await import("telegraf");
 
 // Stub provider APIs used by validateToken — token checked from the header.
@@ -158,14 +158,14 @@ function assert2(name, cond, detail = "") {
 }
 
 // Vault
-const vault = await import("../api/_lib/vault.js");
+const vault = await import("../dist/vault.js");
 process.env.ENCRYPTION_KEY = vault.generateKey();
 assert2("vault roundtrips encrypt/decrypt", vault.decrypt(vault.encrypt("tok-123")) === "tok-123");
 assert2("hmac verify accepts own signature", vault.hmacVerify("sec", "body", vault.hmacSign("sec", "body")));
 assert2("hmac verify rejects wrong secret", !vault.hmacVerify("other", "body", vault.hmacSign("sec", "body")));
 
 // Store roundtrip (memory driver)
-const store = await import("../api/_lib/store.js");
+const store = await import("../dist/store.js");
 const u = await store.getOrCreateUser({ telegramUserId: 999, telegramUsername: "test", firstName: "T", languageCode: "en" });
 assert2("user created", u.telegramUserId === 999, JSON.stringify(u));
 await store.saveConnection(999, "github", "ghp_secret_value", "octo", "pat");
@@ -186,7 +186,7 @@ const c2 = await store.consumeOAuthState(state);
 assert2("oauth state is single-use", Boolean(c1 && c1.userId === 999 && c2 === null), JSON.stringify({ c1, c2 }));
 
 // NLP (Phase 7)
-const nlp = await import("../api/_lib/nlp.js");
+const nlp = await import("../dist/nlp.js");
 const t1 = nlp.parse("create a private repo called calder-api");
 assert2(
   "nlp: create a private repo called calder-api",
@@ -233,7 +233,7 @@ const n7 = nlp.parse("show commits for octo/calder-api");
 assert2("nlp: show commits for repo", Boolean(n7 && n7.command === "commits" && n7.args[0] === "octo/calder-api"), JSON.stringify(n7));
 
 // Rate limiting (Phase 10)
-const rl = await import("../api/_lib/ratelimit.js");
+const rl = await import("../dist/ratelimit.js");
 let floodBlocked = false;
 for (let i = 0; i < 16; i++) {
   const r = rl.checkLimit(999, "messages");
@@ -294,7 +294,7 @@ globalThis.fetch = async (url, opts = {}) => {
   return jsonResponse({});
 };
 
-const gh = await import("../api/_lib/providers/github.js");
+const gh = await import("../dist/providers/github.js");
 const repos = await gh.listRepos({ authType: "pat", token: "ghp_x" }, 1);
 assert2(
   "github listRepos parses response",
@@ -341,7 +341,7 @@ const sr = await gh.searchIssues({ authType: "pat", token: "ghp_x" }, "login bug
 assert2("github searchIssues parses results", sr.length === 1 && sr[0].repo === "octo/calder-api", JSON.stringify(sr));
 
 // Workflow run (Phase 8) — diagnose touches vault + connections only.
-const wf = await import("../api/_lib/workflows.js");
+const wf = await import("../dist/workflows.js");
 const diagnose = wf.findWorkflow("diagnose");
 assert2("findWorkflow resolves diagnose", Boolean(diagnose));
 const task = await wf.runWorkflow(diagnose, {
@@ -361,7 +361,7 @@ assert2("workflow task recorded in store", savedTasks.length >= 1, String(savedT
 // OAuth callback regression: GitHub redirects back WITHOUT ?provider= — the
 // handler must resolve the provider from the state record (this exact bug
 // produced "unknown: unknown provider" in production).
-const cbModule = await import("../api/oauth/callback.js");
+const cbModule = await import("../pages/api/oauth/callback.js");
 const savedState = "cbstate123";
 await store.saveOAuthState(savedState, 999, "github");
 const cbRes = {

@@ -1,0 +1,3 @@
+{
+  "/api/webhooks/github": "pages/api/webhooks/github.js"
+}

@@ -5,14 +5,20 @@
   "type": "module",
   "main": "dist/index.js",
   "scripts": {
-    "dev": "tsx watch src/index.ts",
+    "dev": "next dev",
+    "dev:bot": "tsx watch src/index.ts",
     "start": "node dist/index.js",
-    "build": "tsc && node scripts/copy-to-api.mjs",
-    "typecheck": "tsc --noEmit"
+    "build": "tsc -p tsconfig.build.json && next build",
+    "typecheck": "tsc -p tsconfig.build.json --noEmit"
   },
   "dependencies": {
     "@neondatabase/serverless": "^1.2.1",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
     "dotenv": "^16.4.5",
+    "next": "^16.4.6",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1",
     "telegraf": "^4.16.3"
   },
   "devDependencies": {
