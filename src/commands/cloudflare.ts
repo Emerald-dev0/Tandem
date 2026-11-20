@@ -4,7 +4,7 @@
 
 import { Telegraf, Context } from "telegraf";
 import * as cf from "../providers/cloudflare.js";
-import { withProvider, escapeHtml, askConfirm } from "./shared.js";
+import { withProvider, escapeHtml, askConfirm, comingSoon } from "./shared.js";
 import { argsOf } from "./github.js";
 
 export async function cmdZones(ctx: Context) {
@@ -155,14 +155,17 @@ export async function cmdPurge(ctx: Context, args: string[]) {
 }
 
 export function register(bot: Telegraf) {
-  bot.command("zones", (ctx) => cmdZones(ctx));
-  bot.command("zone", (ctx) => cmdZone(ctx, argsOf(ctx)));
-  bot.command("dns", (ctx) => cmdDns(ctx, argsOf(ctx)));
-  bot.command("dns-add", (ctx) => cmdDnsAdd(ctx, argsOf(ctx)));
-  bot.command("dns-update", (ctx) => cmdDnsUpdate(ctx, argsOf(ctx)));
-  bot.command("dns-delete", (ctx) => cmdDnsDelete(ctx, argsOf(ctx)));
-  bot.command("dns-check", (ctx) => cmdDnsCheck(ctx, argsOf(ctx)));
-  bot.command("dns-import", (ctx) => cmdDnsImport(ctx, argsOf(ctx)));
-  bot.command("zone-settings", (ctx) => cmdZoneSettings(ctx, argsOf(ctx)));
-  bot.command("purge", (ctx) => cmdPurge(ctx, argsOf(ctx)));
+  // Cloudflare is built but held back for launch focus (GitHub + Vercel first).
+  // Flip these back to the cmd* handlers to re-enable.
+  const soon = (ctx: Context) => comingSoon(ctx, "Cloudflare");
+  bot.command("zones", soon);
+  bot.command("zone", soon);
+  bot.command("dns", soon);
+  bot.command("dns-add", soon);
+  bot.command("dns-update", soon);
+  bot.command("dns-delete", soon);
+  bot.command("dns-check", soon);
+  bot.command("dns-import", soon);
+  bot.command("zone-settings", soon);
+  bot.command("purge", soon);
 }

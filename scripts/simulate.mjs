@@ -116,6 +116,10 @@ const cases = [
   // ── Phase 7 NL dispatch ──
   ["NL: list my repos → cmdRepos", txt(17, { id: 17, is_bot: false, first_name: "Nia", username: "nia" }, "list my repos")],
   ["NL: what's the status → status", txt(18, { id: 18, is_bot: false, first_name: "Kojo", username: "kojo" }, "what's the status")],
+
+  // ── Launch focus: Cloudflare/Render held back as coming soon ──
+  ["/zones → coming soon", cmd(19, { id: 19, is_bot: false, first_name: "Ada" }, "/zones")],
+  ["/services → coming soon", cmd(20, { id: 20, is_bot: false, first_name: "Ada" }, "/services")],
 ];
 
 let failures = 0;
@@ -141,6 +145,7 @@ assert("no token echoed back to chat", !allText.includes("ghp_goodtoken") && !al
 assert("secret warning fired for unprompted paste", allText.includes("looks like a secret"));
 assert("NL 'list my repos' dispatched to repos command", allText.includes("isn't connected yet") || allText.includes("Your repositories"));
 assert("NL 'what's the status' answered with status", allText.includes("Tandem status"));
+assert("Cloudflare/Render show coming soon", (allText.match(/coming soon/g) ?? []).length >= 2);
 
 // ═══════════════════════════════════════════════════════════════════
 // PHASE 2–10 MODULE CHECKS — store, vault, oauth-state, nlp, ratelimit,

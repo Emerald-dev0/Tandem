@@ -42,7 +42,7 @@ import { storageMode } from "./storage.js";
 import { connectOptions, storageProvider, type OAuthProvider } from "./oauth.js";
 import { parse as nlpParse } from "./nlp.js";
 import { checkLimit, LIMITS } from "./ratelimit.js";
-import { escapeHtml, looksSecret, runConfirm, userFromCtx } from "./commands/shared.js";
+import { escapeHtml, looksSecret, runConfirm, userFromCtx, comingSoon } from "./commands/shared.js";
 
 // Command modules (Phases 3–9)
 import { register as registerGithub, cmdRepos, cmdCreateRepo, cmdSearch, cmdStar, cmdUnstar, cmdFork, cmdCommits, cmdCommitInfo, cmdPr, cmdIssue, cmdRepoEdit, cmdRepoDelete } from "./commands/github.js";
@@ -94,18 +94,15 @@ export async function registerCommands(bot: Telegraf) {
 
 const MENU_LABELS = new Set(["🚀 Create", "🐙 GitHub", "☁️ Deployments", "🌐 Infrastructure", "📊 Activity", "⚙️ Settings"]);
 
-function comingSoon(ctx: Context, feature: string, phase: string) {
-  return ctx.reply(
-    `⏳ <b>${feature}</b> is coming in ${phase}.\n\n` +
-      `Meanwhile, try /workflows — real multi-step automations already work.`,
-    { parse_mode: "HTML" }
-  );
-}
+// (comingSoon lives in commands/shared.ts — Cloudflare/Render launch holdback.)
 
 // ── Connect flows (Phase 2 + OAuth) ─────────────────────────────────
 
 async function startConnect(ctx: Context, providerRaw: string) {
   const provider = storageProvider(providerRaw as OAuthProvider);
+  if (provider === "cloudflare" || provider === "render") {
+    return comingSoon(ctx, provider === "cloudflare" ? "Cloudflare" : "Render");
+  }
   const def = providerDef(provider);
   if (!def) return ctx.reply(`Unknown provider "${escapeHtml(providerRaw)}".`);
   const user = await userFromCtx(ctx);
@@ -180,12 +177,8 @@ const helpText = `
 /deployments · /deployment · /deployment-cancel · /promote · /env · /domains
 /domain-remove · /logs
 
-<b>Cloudflare</b>
-/zones · /zone · /dns · /dns-add · /dns-update · /dns-delete · /dns-check
-/dns-import · /zone-settings · /purge
-
-<b>Render</b>
-/services · /service · /create-service · /restart · /service-status
+<b>Coming soon</b>
+☁️ Cloudflare (zones, DNS, cache) · 🟣 Render (services, deploys)
 
 <b>Workflows & monitoring</b>
 /workflows · /run · /diagnose · /activity · /watch · /unwatch
@@ -198,7 +191,7 @@ const helpText = `
 "deploy my-app to vercel", "search for auth bug", "star owner/repo",
 "comment on pr 12 in owner/repo looks good", "promote dpl_x".
 
-<i>Tandem v0.4.0 — /status shows the full build state.</i>
+<i>Tandem v0.4.1 — /status shows the full build state.</i>
 `.trim();
 
 // ── Bot factory ─────────────────────────────────────────────────────
@@ -256,9 +249,9 @@ export function createBot() {
     await ctx.reply(
       `👋 Hey ${name}, welcome to <b>Tandem</b>.\n\n` +
         `Your development ecosystem, connected in one place.\n\n` +
-        `🐙 GitHub · ▲ Vercel · ☁️ Cloudflare · 🟣 Render — ` +
-        `create repositories, deploy applications and manage infrastructure ` +
-        `directly from Telegram.\n\n` +
+        `🐙 <b>GitHub</b> · ▲ <b>Vercel</b> — create repositories, deploy applications ` +
+        `and manage infrastructure directly from Telegram.\n` +
+        `⏳ Coming soon: ☁️ Cloudflare · 🟣 Render.\n\n` +
         `✨ <b>Connect your tools. Tell Tandem what you need. Get it done.</b>\n\n` +
         (isNew ? `🆕 I've created your account and workspace.\n\n` : ``) +
         `What would you like to do first?`,
@@ -300,7 +293,7 @@ export function createBot() {
           : "🟡 in-memory (connect Neon Postgres in Vercel → Storage)";
     const vault = vaultReady() ? "🟢 ready" : "🟡 no ENCRYPTION_KEY yet";
     return ctx.reply(
-      `<b>📊 Tandem status</b> v0.4.0\n\n` +
+      `<b>📊 Tandem status</b> v0.4.1\n\n` +
         `Bot: 🟢 online\nUsers: ${await userCount()}\nStorage: ${storage}\nVault: ${vault}\n\n${lines.join("\n")}\n\n` +
         `/diagnose for a full health check.`,
       { parse_mode: "HTML" }
@@ -371,6 +364,7 @@ export function createBot() {
     const options = connectOptions();
     const buttons: any[] = [];
     for (const opt of options) {
+      if (opt.provider === "cloudflare") continue; // coming soon
       const nonce = randomHex(16);
       await saveOAuthState(nonce, user.telegramUserId, opt.provider);
       buttons.push([
@@ -378,8 +372,10 @@ export function createBot() {
       ]);
     }
     for (const p of PROVIDER_LIST) {
+      if (p.name === "cloudflare" || p.name === "render") continue; // coming soon
       buttons.push([Markup.button.callback(`🔑 ${p.displayName} — paste a token`, `connect:${p.name}`)]);
     }
+    buttons.push([Markup.button.callback("⏳ Cloudflare & Render — coming soon", "soon:more")]);
     buttons.push([Markup.button.callback("⬅️ Back", "welcome:back")]);
 
     const intro =
@@ -466,7 +462,7 @@ export function createBot() {
       "🚀 <b>Let's go!</b>\n\n" +
         "Step 1: Connect GitHub so Tandem can work with your repositories.\n" +
         "Step 2: Connect Vercel to deploy them.\n" +
-        "Step 3: Connect Cloudflare for domains & DNS.\n\n" +
+        "Step 3: Try it — say \"create a private repo called my-app\".\n\n" +
         "Tap below to start 👇",
       { parse_mode: "HTML", reply_markup: Markup.inlineKeyboard(buttons).reply_markup }
     );
@@ -537,8 +533,15 @@ export function createBot() {
     ctx.reply('➕ Send me: /create_repo <name> [private|public]\nOr just say "create a private repo called my-app".')
   );
   bot.action("deploy:vercel", (ctx) => cmdProjects(ctx, []));
-  bot.action("deploy:render", (ctx) => cmdServices(ctx));
-  bot.action("infra:cloudflare", (ctx) => cmdZones(ctx));
+  bot.action("deploy:render", (ctx) => comingSoon(ctx, "Render"));
+  bot.action("infra:cloudflare", (ctx) => comingSoon(ctx, "Cloudflare"));
+  bot.action(/^soon:(.+)$/, async (ctx) =>
+    ctx.reply(
+      "⏳ <b>Cloudflare</b> and <b>Render</b> support are coming soon to Tandem.\n\n" +
+        "We're perfecting GitHub and Vercel first. They're on the roadmap and land in one of the next updates.",
+      { parse_mode: "HTML" }
+    )
+  );
 
   bot.action("settings:profile", async (ctx) => {
     const user = await userFromCtx(ctx);
@@ -690,12 +693,12 @@ export function createBot() {
         deploy: cmdDeploy,
         deployments: cmdDeployments,
         projects: cmdProjects,
-        zones: cmdZones,
-        dns: cmdDns,
-        "dns-add": cmdDnsAdd,
-        purge: cmdPurge,
-        services: cmdServices,
-        restart: cmdRestart,
+        zones: (ctx) => comingSoon(ctx, "Cloudflare"),
+        dns: (ctx) => comingSoon(ctx, "Cloudflare"),
+        "dns-add": (ctx) => comingSoon(ctx, "Cloudflare"),
+        purge: (ctx) => comingSoon(ctx, "Cloudflare"),
+        services: (ctx) => comingSoon(ctx, "Render"),
+        restart: (ctx) => comingSoon(ctx, "Render"),
         activity: cmdActivity,
         run: cmdRun,
         workflows: cmdWorkflows,
